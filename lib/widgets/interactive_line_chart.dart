@@ -1,6 +1,7 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import '../l10n/app_localizations.dart';
 
 class InteractiveLineChart extends StatefulWidget {
   final Map<dynamic, dynamic> historyData;
@@ -142,7 +143,7 @@ class _InteractiveLineChartState extends State<InteractiveLineChart> {
   @override
   Widget build(BuildContext context) {
     if (_spots.isEmpty) {
-      return const Center(child: Text('No history data available for chart.'));
+      return Center(child: Text(AppLocalizations.of(context)!.unknownLabel));
     }
 
     return Listener(
@@ -264,7 +265,7 @@ class _InteractiveLineChartState extends State<InteractiveLineChart> {
                       if (spotIndex >= _totalPoints) spotIndex = _totalPoints - 1;
                       final date = _sortedKeys[spotIndex];
                       return LineTooltipItem(
-                        '$date\n${touchedSpot.y.toInt()} 次',
+                        '$date\n${touchedSpot.y.toInt()} ${AppLocalizations.of(context)!.playsSuffix}',
                         const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                       );
                     }).toList();

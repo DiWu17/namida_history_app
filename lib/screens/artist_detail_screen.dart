@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/app_localizations.dart';
 import '../widgets/interactive_line_chart.dart';
 
 class ArtistDetailScreen extends StatelessWidget {
@@ -50,7 +51,7 @@ class ArtistDetailScreen extends StatelessWidget {
                          border: Border.all(color: Colors.purple.withAlpha(50)),
                        ),
                        child: Text(
-                         '累计播放 $totalPlays 次',
+                         '$totalPlays ${AppLocalizations.of(context)!.playsSuffix}',
                          style: const TextStyle(
                            fontSize: 16, 
                            fontWeight: FontWeight.w600,
@@ -63,7 +64,7 @@ class ArtistDetailScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 32),
-            const Text('历史时刻', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(AppLocalizations.of(context)!.historyTitle, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
             Card(
               elevation: 0,
@@ -73,9 +74,9 @@ class ArtistDetailScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   children: [
-                    _buildTimeRow(context, '首次播放', details['first_play']?.toString() ?? '未知', Icons.fiber_new_rounded, Colors.green),
+                    _buildTimeRow(context, AppLocalizations.of(context)!.firstPlayLabel, details['first_play']?.toString() ?? AppLocalizations.of(context)!.unknownLabel, Icons.fiber_new_rounded, Colors.green),
                     const Divider(height: 24),
-                    _buildTimeRow(context, '最后播放', details['last_play']?.toString() ?? '未知', Icons.update_rounded, Colors.orange),
+                    _buildTimeRow(context, AppLocalizations.of(context)!.lastPlayLabel, details['last_play']?.toString() ?? AppLocalizations.of(context)!.unknownLabel, Icons.update_rounded, Colors.orange),
                   ],
                 ),
               ),
@@ -83,7 +84,7 @@ class ArtistDetailScreen extends StatelessWidget {
             const SizedBox(height: 48),
             // 最爱歌曲 Top 10
             if (details['top_songs'] != null && (details['top_songs'] as Map).isNotEmpty) ...[
-               const Text('歌手热歌 Top 10', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+               Text(AppLocalizations.of(context)!.artistTopSongsTitle, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                const SizedBox(height: 16),
                Card(
                 elevation: 0,
@@ -131,7 +132,7 @@ class ArtistDetailScreen extends StatelessWidget {
                         style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)
                       ),
                       trailing: Text(
-                        '${entry.value} 次',
+                        '${entry.value} ${AppLocalizations.of(context)!.playsSuffix}',
                         style: TextStyle(
                           fontWeight: FontWeight.bold, 
                           color: Theme.of(context).colorScheme.primary, 
@@ -144,7 +145,7 @@ class ArtistDetailScreen extends StatelessWidget {
               ),
               const SizedBox(height: 48),
             ],
-            const Text('播放趋势', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(AppLocalizations.of(context)!.playTrend, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
             Container(
               height: 300,

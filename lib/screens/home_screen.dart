@@ -3,6 +3,9 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../l10n/app_localizations.dart';
+import '../providers/locale_provider.dart';
 
 import '../widgets/interactive_line_chart.dart';
 import 'full_list_screen.dart';
@@ -19,9 +22,9 @@ class AnalyzerHome extends StatefulWidget {
 
 class _AnalyzerHomeState extends State<AnalyzerHome> {
   bool _isLoading = false;
-  String _statusMessage = 'Choose a Namida Backup ZIP file to begin';
+  String _statusMessage = '';
   Map<String, dynamic>? _allSummaries;
-  String _selectedYear = '所有时间';
+  String _selectedYear = '';
   String? _musicDirectory;
 
   void _showSettingsDialog() {
@@ -29,18 +32,19 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
       context: context,
       builder: (ctx) {
         return StatefulBuilder(
-          builder: (context, setDialogState) {
+            builder: (context, setDialogState) {
+            final l10n = AppLocalizations.of(context)!;
             return AlertDialog(
-              title: const Text('设置 (Settings)'),
+              title: Text(l10n.settingsTitle),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('可选配置 (Optional Path):'),
+                  Text('${l10n.optionalPath}:'),
                   const SizedBox(height: 8),
-                  const Text(
-                    '匹配本地音乐文件以补充元数据信息 (Metadata extraction)',
-                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  Text(
+                    l10n.metadataExtraction,
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
                   ),
                   const SizedBox(height: 16),
                   OutlinedButton.icon(
@@ -55,7 +59,7 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
                     },
                     icon: const Icon(Icons.folder_open),
                     label: Text(_musicDirectory == null 
-                      ? '选择音乐文件夹 (Select Music Folder)' 
+                      ? l10n.chooseMusicFolder 
                       : '...${_musicDirectory!.length > 20 ? _musicDirectory!.substring(_musicDirectory!.length - 20) : _musicDirectory}'),
                   ),
                   if (_musicDirectory != null) ...[
@@ -68,15 +72,43 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
                         setDialogState(() {});
                       },
                       icon: const Icon(Icons.clear, size: 16),
-                      label: const Text('清除路径 (Clear path)'),
+                      label: Text(l10n.clearPath),
                     ),
-                  ]
+                  ],
+                  const Divider(height: 32),
+                  Row(
+                    children: [
+                      const Icon(Icons.language, size: 18),
+                      const SizedBox(width: 8),
+                      Text(l10n.language),
+                      const Spacer(),
+                      DropdownButton<Locale>(
+                        value: Provider.of<LocaleProvider>(context, listen: false).locale,
+                        items: [
+                          DropdownMenuItem(
+                            value: const Locale('zh'),
+                            child: Text(l10n.chinese),
+                          ),
+                          DropdownMenuItem(
+                            value: const Locale('en'),
+                            child: Text(l10n.english),
+                          ),
+                        ],
+                        onChanged: (Locale? newLocale) {
+                          if (newLocale != null) {
+                            Provider.of<LocaleProvider>(context, listen: false).setLocale(newLocale);
+                            setDialogState(() {});
+                          }
+                        },
+                      ),
+                    ],
+                  ),
                 ],
               ),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(ctx).pop(),
-                  child: const Text('完成 (Done)'),
+                  child: Text(l10n.done),
                 ),
               ],
             );
@@ -86,8 +118,13 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
     );
   }
 
+  String _normalizeNewlines(String s) {
+    return s.replaceAll('\\n', '\n');
+  }
+
   Future<void> _pickAndAnalyze() async {
     try {
+      final l10n = AppLocalizations.of(context)!;
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['zip'],
@@ -95,9 +132,9 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
 
       if (result != null && result.files.single.path != null) {
         String zipPath = result.files.single.path!;
-        setState(() {
+          setState(() {
           _isLoading = true;
-          _statusMessage = 'Extracting and analyzing...\nThis may take a moment.';
+          _statusMessage = _normalizeNewlines(l10n.extractingMessage);
           _allSummaries = null;
         });
 
@@ -129,17 +166,23 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
 
         final parsed = jsonDecode(jsonText);
         if (parsed['success'] == true) {
-          setState(() {
+            setState(() {
             _allSummaries = Map<String, dynamic>.from(parsed['summaries']);
-            
-            // Default select the broadest dataset if available
-            if (_allSummaries != null && _allSummaries!.containsKey('所有时间')) {
-              _selectedYear = '所有时间';
+
+            // Find the actual map key that represents the broadest dataset (All Time)
+            String? allTimeKey;
+            for (var k in _allSummaries!.keys) {
+              if (k == l10n.allTime || k == 'All Time' || k == '所有时间') {
+                allTimeKey = k;
+                break;
+              }
+            }
+            if (allTimeKey != null) {
+              _selectedYear = allTimeKey;
             } else if (_allSummaries != null && _allSummaries!.isNotEmpty) {
               _selectedYear = _allSummaries!.keys.first;
             }
-            
-            _statusMessage = 'Analysis complete!';
+            _statusMessage = l10n.analysisComplete;
           });
         } else {
           throw Exception(parsed['error'] ?? 'Unknown error occurred in script');
@@ -147,21 +190,22 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
       }
     } catch (e) {
       if (!mounted) return;
+      final l10n = AppLocalizations.of(context)!;
       showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: const Text('Error'),
-          content: Text(e.toString()),
+          title: Text(l10n.errorTitle),
+          content: Text(_normalizeNewlines(e.toString())),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('OK'),
+              child: Text(l10n.ok),
             ),
           ],
         ),
       );
       setState(() {
-        _statusMessage = 'An error occurred during analysis.';
+        _statusMessage = '';
       });
     } finally {
       if (mounted) {
@@ -179,7 +223,7 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
       body: CustomScrollView(
         slivers: [
           SliverAppBar.large(
-            title: const Text('Namida History', style: TextStyle(fontWeight: FontWeight.bold)),
+            title: Text(AppLocalizations.of(context)!.namidaHistory, style: const TextStyle(fontWeight: FontWeight.bold)),
             backgroundColor: Theme.of(context).colorScheme.inversePrimary,
             actions: [
               if (hasData)
@@ -194,7 +238,7 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
                           return DropdownMenuItem<String>(
                             value: year,
                             child: Text(
-                              year,
+                              _displayYearLabel(year),
                               style: const TextStyle(fontWeight: FontWeight.w600),
                             ),
                           );
@@ -211,18 +255,18 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
                   ),
                 ),
               IconButton(
-                tooltip: 'Settings',
+                tooltip: AppLocalizations.of(context)!.settingsTitle,
                 icon: const Icon(Icons.settings),
                 onPressed: _showSettingsDialog,
               ),
               if (hasData)
                 IconButton(
-                  tooltip: 'Reset and select new file',
+                  tooltip: AppLocalizations.of(context)!.resetAndSelectNewFile,
                   icon: const Icon(Icons.refresh),
                   onPressed: () {
                     setState(() {
                       _allSummaries = null;
-                      _statusMessage = 'Choose a Namida Backup ZIP file to begin';
+                      _statusMessage = '';
                     });
                   },
                 ),
@@ -271,13 +315,13 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
             ),
             const SizedBox(height: 32),
             Text(
-              'Welcome to Namida Analyzer',
+              AppLocalizations.of(context)!.welcomeMessage,
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 12),
             Text(
-              _statusMessage,
+              _statusMessage.isNotEmpty ? _statusMessage : AppLocalizations.of(context)!.chooseBackupZip,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
               textAlign: TextAlign.center,
             ),
@@ -289,12 +333,20 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
               ),
               onPressed: _isLoading ? null : _pickAndAnalyze,
               icon: const Icon(Icons.file_open),
-              label: const Text('Select Backup ZIP', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              label: Text(AppLocalizations.of(context)!.selectBackupZip, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             ),
           ],
         ],
       ),
     );
+  }
+
+  String _displayYearLabel(String year) {
+    final l10n = AppLocalizations.of(context)!;
+    if (year == l10n.allTime || year == 'All Time' || year == '所有时间') {
+      return l10n.allTime;
+    }
+    return year;
   }
 
   Widget _buildSectionTitle(String title) {
@@ -319,7 +371,7 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _buildSectionTitle('1. 核心数字 (全年轮廓)'),
+          _buildSectionTitle(AppLocalizations.of(context)!.sectionCoreNumbers),
           LayoutBuilder(
             builder: (context, constraints) {
               int crossAxisCount = 2;
@@ -338,32 +390,32 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
                 physics: const NeverScrollableScrollPhysics(),
                 childAspectRatio: crossAxisCount == 4 ? 1.4 : (crossAxisCount == 3 ? 1.25 : 1.15),
                 children: [
-                   _buildStatCard('听歌总计', '${summary['total_hours'] ?? '0'} 小时', Icons.timer_rounded, Colors.blue),
-                   _buildStatCard('听歌陪伴', '${summary['total_days'] ?? '0'} 天', Icons.calendar_month_rounded, Colors.teal),
-                   _buildStatCard('日均时长', '${summary['avg_daily_minutes'] ?? '0'} 分钟', Icons.hourglass_bottom_rounded, Colors.cyan),
-                   _buildStatCard('累计播放', '${summary['total_plays'] ?? '0'} 次', Icons.play_circle_fill_rounded, Colors.green),
-                   _buildStatCard('探索单曲', '${summary['unique_tracks'] ?? '0'} 首', Icons.library_music_rounded, Colors.orange),
-                   _buildStatCard('探索歌手', '${summary['unique_artists'] ?? '0'} 位', Icons.mic_rounded, Colors.purple),
-                   _buildStatCard('探索专辑', '${summary['unique_albums'] ?? '0'} 张', Icons.album_rounded, Colors.deepOrange),
-                   _buildStatCard('最爱流派', '${summary['favorite_genre'] ?? '未知'}', Icons.category_rounded, Colors.pink),
+                   _buildStatCard(AppLocalizations.of(context)!.statTotalListening, '${summary['total_hours'] ?? '0'} ${AppLocalizations.of(context)!.hoursUnit}', Icons.timer_rounded, Colors.blue),
+                   _buildStatCard(AppLocalizations.of(context)!.statListeningCompanion, '${summary['total_days'] ?? '0'} ${AppLocalizations.of(context)!.daysUnit}', Icons.calendar_month_rounded, Colors.teal),
+                   _buildStatCard(AppLocalizations.of(context)!.statAvgDaily, '${summary['avg_daily_minutes'] ?? '0'} ${AppLocalizations.of(context)!.minutesUnit}', Icons.hourglass_bottom_rounded, Colors.cyan),
+                   _buildStatCard(AppLocalizations.of(context)!.statTotalPlays, '${summary['total_plays'] ?? '0'} ${AppLocalizations.of(context)!.playsSuffix}', Icons.play_circle_fill_rounded, Colors.green),
+                   _buildStatCard(AppLocalizations.of(context)!.statUniqueTracks, '${summary['unique_tracks'] ?? '0'} ${AppLocalizations.of(context)!.tracksUnit}', Icons.library_music_rounded, Colors.orange),
+                   _buildStatCard(AppLocalizations.of(context)!.statUniqueArtists, '${summary['unique_artists'] ?? '0'} ${AppLocalizations.of(context)!.artistsUnit}', Icons.mic_rounded, Colors.purple),
+                   _buildStatCard(AppLocalizations.of(context)!.statUniqueAlbums, '${summary['unique_albums'] ?? '0'} ${AppLocalizations.of(context)!.albumsUnit}', Icons.album_rounded, Colors.deepOrange),
+                   _buildStatCard(AppLocalizations.of(context)!.statFavoriteGenre, '${summary['favorite_genre'] ?? AppLocalizations.of(context)!.unknownLabel}', Icons.category_rounded, Colors.pink),
                 ]
               );
             },
           ),
           const SizedBox(height: 48),
 
-          _buildSectionTitle('2. 年度排行榜'),
+          _buildSectionTitle(AppLocalizations.of(context)!.sectionTopLists),
           if (summary['most_played'] != null && (summary['most_played'] as Map).isNotEmpty)
-            _buildListSection('年度最爱单曲 Top 10', summary['most_played'], Icons.music_note, Colors.blue, type: 'track', detailsMap: summary['track_details']),
+            _buildListSection(AppLocalizations.of(context)!.annualTopTracks, summary['most_played'], Icons.music_note, Colors.blue, type: 'track', detailsMap: summary['track_details']),
           if (summary['top_artists'] != null && (summary['top_artists'] as Map).isNotEmpty)
-            _buildListSection('年度最爱歌手 Top 10', summary['top_artists'], Icons.person, Colors.purple, type: 'artist', detailsMap: summary['artist_details']),
+            _buildListSection(AppLocalizations.of(context)!.annualTopArtists, summary['top_artists'], Icons.person, Colors.purple, type: 'artist', detailsMap: summary['artist_details']),
           if (summary['top_albums'] != null && (summary['top_albums'] as Map).isNotEmpty)
-            _buildListSection('年度最爱专辑 Top 10', summary['top_albums'], Icons.album, Colors.deepOrange, type: 'album', detailsMap: summary['album_details']),
+            _buildListSection(AppLocalizations.of(context)!.annualTopAlbums, summary['top_albums'], Icons.album, Colors.deepOrange, type: 'album', detailsMap: summary['album_details']),
           if (summary['monthly_top_song'] != null && (summary['monthly_top_song'] as Map).isNotEmpty)
             _buildMonthlyTopSongMap(summary['monthly_top_song'], summary['track_details']),
           const SizedBox(height: 32),
 
-          _buildSectionTitle('3. 时间维度与听歌作息'),
+          _buildSectionTitle(AppLocalizations.of(context)!.sectionTimeDimension),
           if (summary['listening_periods'] != null)
              _buildPeriodsCard(summary['listening_periods']),
           const SizedBox(height: 16),
@@ -371,11 +423,15 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
              _buildWeeklyCard(summary['weekly_pattern']),
           const SizedBox(height: 48),
 
-          _buildSectionTitle('4. 高光与极值时刻'),
+          _buildSectionTitle(AppLocalizations.of(context)!.sectionHighlights),
           if (summary['single_day_repeat_max'] != null && summary['single_day_repeat_max']['count'] > 0)
             _buildHighlightCard(
-              '执念时刻：单曲循环之最', 
-              '【${summary['single_day_repeat_max']['date']}】这一天一定很特别，\n你把《${summary['single_day_repeat_max']['track']}》单曲循环了 ${summary['single_day_repeat_max']['count']} 遍。',
+              AppLocalizations.of(context)!.highlightRepeatTitle,
+              _normalizeNewlines(AppLocalizations.of(context)!.highlightRepeatBody(
+                summary['single_day_repeat_max']['count'].toString(),
+                summary['single_day_repeat_max']['date'].toString(),
+                summary['single_day_repeat_max']['track'].toString(),
+              )),
               Icons.repeat_one_rounded,
               Colors.indigo,
               trackName: summary['single_day_repeat_max']['track'].toString(),
@@ -384,8 +440,11 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
           const SizedBox(height: 16),
           if (summary['latest_night_song'] != null && summary['latest_night_song']['time'] != "")
             _buildHighlightCard(
-              '最晚的夜', 
-              '全年在凌晨最晚的一次听歌是 ${summary['latest_night_song']['time']}，\n这首歌是《${summary['latest_night_song']['track']}》。',
+              AppLocalizations.of(context)!.latestNightTitle,
+              _normalizeNewlines(AppLocalizations.of(context)!.latestNightBody(
+                summary['latest_night_song']['time'].toString(),
+                summary['latest_night_song']['track'].toString(),
+              )),
               Icons.nights_stay_rounded,
               Colors.deepPurple,
               trackName: summary['latest_night_song']['track'].toString(),
@@ -394,14 +453,17 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
           const SizedBox(height: 16),
           if (summary['most_immersive_day'] != null && summary['most_immersive_day']['count'] > 0)
             _buildHighlightCard(
-              '最沉浸的一天', 
-              '【${summary['most_immersive_day']['date']}】 是你在音乐里最沉浸的一天，\n全天一共播放了 ${summary['most_immersive_day']['count']} 次。',
+              AppLocalizations.of(context)!.mostImmersiveTitle,
+              _normalizeNewlines(AppLocalizations.of(context)!.mostImmersiveBody(
+                summary['most_immersive_day']['count'].toString(),
+                summary['most_immersive_day']['date'].toString(),
+              )),
               Icons.headphones_rounded,
               Colors.pink
             ),
           const SizedBox(height: 48),
 
-          _buildSectionTitle('播放历史趋势'),
+          _buildSectionTitle(AppLocalizations.of(context)!.sectionPlayHistoryTrend),
           Container(
             height: 300,
             padding: const EdgeInsets.all(24.0),
@@ -436,7 +498,7 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
                onPressed: () {
                  Navigator.push(context, MaterialPageRoute(builder: (ctx) => FullListScreen(title: title.replaceAll(' Top 10', ''), data: data, icon: icon, type: type, detailsMap: detailsMap)));
                },
-               child: const Text('查看总榜', style: TextStyle(fontWeight: FontWeight.bold)),
+               child: Text(AppLocalizations.of(context)!.viewFullList, style: const TextStyle(fontWeight: FontWeight.bold)),
              ),
           ]
         ),
@@ -451,8 +513,8 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
     final sortedKeys = data.keys.toList()..sort();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text('每月主打歌', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+        children: [
+          Text(AppLocalizations.of(context)!.monthlyTopSong, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
         const SizedBox(height: 8),
         Card(
           elevation: 0,
@@ -472,13 +534,13 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
               final key = sortedKeys[index];
               final monthStr = key.toString().substring(5); // e.g., "01" from "2023-01"
               final trackName = data[key].toString();
-              return ListTile(
+                  return ListTile(
                 onTap: () {
                   final details = trackDetails?[trackName];
                   if (details != null) {
                     Navigator.push(context, MaterialPageRoute(builder: (ctx) => TrackDetailScreen(trackName: trackName, details: details)));
                   } else {
-                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('暂无该单曲的详细信息')));
+                     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.noTrackDetails)));
                   }
                 },
                 contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
@@ -537,12 +599,12 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('时段分布', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          Text(AppLocalizations.of(context)!.periodDistributionTitle, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 20),
-          _buildSimpleBar('凌晨', periods['night'] ?? 0, maxVal, Colors.indigo),
-          _buildSimpleBar('上午', periods['morning'] ?? 0, maxVal, Colors.lightBlue),
-          _buildSimpleBar('下午', periods['afternoon'] ?? 0, maxVal, Colors.orange),
-          _buildSimpleBar('夜晚', periods['evening'] ?? 0, maxVal, Colors.deepPurple),
+          _buildSimpleBar(AppLocalizations.of(context)!.periodNight, periods['night'] ?? 0, maxVal, Colors.indigo),
+          _buildSimpleBar(AppLocalizations.of(context)!.periodMorning, periods['morning'] ?? 0, maxVal, Colors.lightBlue),
+          _buildSimpleBar(AppLocalizations.of(context)!.periodAfternoon, periods['afternoon'] ?? 0, maxVal, Colors.orange),
+          _buildSimpleBar(AppLocalizations.of(context)!.periodEvening, periods['evening'] ?? 0, maxVal, Colors.deepPurple),
         ],
       ),
     );
@@ -551,7 +613,6 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
   Widget _buildWeeklyCard(Map<dynamic, dynamic> weekly) {
     int maxVal = weekly.values.fold(0, (prev, val) => val > prev ? val : prev);
     final days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    final labels = {'Mon': '周一', 'Tue': '周二', 'Wed': '周三', 'Thu': '周四', 'Fri': '周五', 'Sat': '周六', 'Sun': '周日'};
     
     return Container(
       padding: const EdgeInsets.all(24.0),
@@ -569,10 +630,21 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('一周规律', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          Text(AppLocalizations.of(context)!.weeklyPatternTitle, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 20),
           for (var d in days)
-            _buildSimpleBar(labels[d]!, weekly[d] ?? 0, maxVal, Colors.teal),
+            _buildSimpleBar(
+              d == 'Mon' ? AppLocalizations.of(context)!.weekMon :
+              d == 'Tue' ? AppLocalizations.of(context)!.weekTue :
+              d == 'Wed' ? AppLocalizations.of(context)!.weekWed :
+              d == 'Thu' ? AppLocalizations.of(context)!.weekThu :
+              d == 'Fri' ? AppLocalizations.of(context)!.weekFri :
+              d == 'Sat' ? AppLocalizations.of(context)!.weekSat :
+              AppLocalizations.of(context)!.weekSun,
+              weekly[d] ?? 0,
+              maxVal,
+              Colors.teal
+            ),
         ],
       ),
     );
@@ -584,7 +656,7 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
       child: Row(
         children: [
           SizedBox(
-            width: 48, 
+            width: 72, 
             child: Text(
               label, 
               style: TextStyle(
@@ -622,7 +694,7 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
           SizedBox(
             width: 56, 
             child: Text(
-              '$value 次', 
+              '$value ${AppLocalizations.of(context)!.playsSuffix}', 
               textAlign: TextAlign.right, 
               style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)
             )
@@ -652,7 +724,7 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
             if (details != null) {
               Navigator.push(context, MaterialPageRoute(builder: (ctx) => TrackDetailScreen(trackName: trackName, details: details)));
             } else {
-               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('暂无该单曲的详细信息')));
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.noTrackDetails)));
             }
           } : null,
           child: Padding(
@@ -807,9 +879,9 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
                 } else if (type == 'album') {
                   Navigator.push(context, MaterialPageRoute(builder: (ctx) => AlbumDetailScreen(albumName: name, details: details)));
                 }
-              } else {
-                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('暂无该项目详细信息')));
-              }
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.noItemDetails)));
+                }
             } : null,
             contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
             leading: SizedBox(
@@ -838,7 +910,7 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
-                '${entry.value} 次',
+                '${entry.value} ${AppLocalizations.of(context)!.playsSuffix}',
                 style: TextStyle(
                   fontWeight: FontWeight.bold, 
                   color: Theme.of(context).colorScheme.onPrimaryContainer, 

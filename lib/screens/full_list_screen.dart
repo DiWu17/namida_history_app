@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/app_localizations.dart';
 import 'track_detail_screen.dart';
 import 'artist_detail_screen.dart';
 import 'album_detail_screen.dart';
@@ -24,7 +25,7 @@ class FullListScreen extends StatelessWidget {
     if (data.isEmpty) {
       return Scaffold(
         appBar: AppBar(title: Text(title)),
-        body: const Center(child: Text('No data available.')),
+        body: Center(child: Text(AppLocalizations.of(context)!.noDataAvailable)),
       );
     }
 
@@ -33,7 +34,7 @@ class FullListScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('$title 总榜', style: const TextStyle(fontWeight: FontWeight.bold)),
+        title: Text('$title ${AppLocalizations.of(context)!.fullListSuffix}', style: const TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
       body: ListView.separated(
@@ -66,9 +67,9 @@ class FullListScreen extends StatelessWidget {
                   } else if (type == 'album') {
                     Navigator.push(context, MaterialPageRoute(builder: (ctx) => AlbumDetailScreen(albumName: name, details: details)));
                   }
-              } else {
-                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('暂无该项目详细信息')));
-              }
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.noItemDetails)));
+                }
             } : null,
             contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
             leading: SizedBox(
@@ -97,7 +98,7 @@ class FullListScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
-                '${entry.value} 次',
+                '${entry.value} ${AppLocalizations.of(context)!.playsSuffix}',
                 style: TextStyle(
                   fontWeight: FontWeight.bold, 
                   color: Theme.of(context).colorScheme.onPrimaryContainer, 
