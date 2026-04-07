@@ -4,11 +4,18 @@ import 'package:provider/provider.dart';
 import 'l10n/app_localizations.dart';
 import 'screens/home_screen.dart';
 import 'providers/locale_provider.dart';
+import 'services/config_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await ConfigService().init();
+
+  final localeProvider = LocaleProvider();
+  localeProvider.loadFromConfig();
+
   runApp(
     ChangeNotifierProvider(
-      create: (context) => LocaleProvider(),
+      create: (context) => localeProvider,
       child: const MyApp(),
     ),
   );

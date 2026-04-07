@@ -21,6 +21,7 @@ build/
 /.flutter-plugins
 /.flutter-plugins-dependencies
 
+
 # Android related
 **/android/app/src/main/cpp/lib/
 **/android/app/src/main/jniLibs/

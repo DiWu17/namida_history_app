@@ -65,6 +65,15 @@ class Parser:
                 pass
 
         self.df = pd.DataFrame(self.raw_data)
+
+        # Deduplicate: remove records with the same (track, dateAdded)
+        if not self.df.empty and 'track' in self.df.columns and 'dateAdded' in self.df.columns:
+            before = len(self.df)
+            # Ignore path, only use filename for dedup
+            self.df['_track_basename'] = self.df['track'].apply(lambda x: os.path.basename(str(x)))
+            self.df.drop_duplicates(subset=['_track_basename', 'dateAdded'], keep='first', inplace=True)
+            self.df.drop(columns=['_track_basename'], inplace=True)
+            self.df.reset_index(drop=True, inplace=True)
         
         if not self.df.empty:
             if 'dateAdded' in self.df.columns:

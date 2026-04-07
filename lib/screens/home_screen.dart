@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/locale_provider.dart';
 
+import '../services/config_service.dart';
 import '../widgets/interactive_line_chart.dart';
 import 'full_list_screen.dart';
 import 'track_detail_screen.dart';
@@ -26,6 +27,12 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
   Map<String, dynamic>? _allSummaries;
   String _selectedYear = '';
   String? _musicDirectory;
+
+  @override
+  void initState() {
+    super.initState();
+    _musicDirectory = ConfigService().get('music_directory');
+  }
 
   void _showSettingsDialog() {
     showDialog(
@@ -54,6 +61,7 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
                         setState(() {
                           _musicDirectory = selectedDirectory;
                         });
+                        ConfigService().set('music_directory', selectedDirectory);
                         setDialogState(() {});
                       }
                     },
@@ -69,6 +77,7 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
                         setState(() {
                           _musicDirectory = null;
                         });
+                        ConfigService().remove('music_directory');
                         setDialogState(() {});
                       },
                       icon: const Icon(Icons.clear, size: 16),
@@ -128,10 +137,16 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['zip'],
+        allowMultiple: true,
       );
 
-      if (result != null && result.files.single.path != null) {
-        String zipPath = result.files.single.path!;
+      if (result != null && result.files.isNotEmpty) {
+        final validPaths = result.files
+            .where((f) => f.path != null)
+            .map((f) => f.path!)
+            .toList();
+        if (validPaths.isEmpty) return;
+        String zipArg = validPaths.join('|');
           setState(() {
           _isLoading = true;
           _statusMessage = _normalizeNewlines(l10n.extractingMessage);
@@ -141,7 +156,7 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
         // Resolve absolute path to python script
         final scriptPath = 'scripts/run_analysis.py';
         
-        List<String> args = [scriptPath, zipPath];
+        List<String> args = [scriptPath, zipArg];
         if (_musicDirectory != null) {
           args.add(_musicDirectory!);
         }
