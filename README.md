@@ -1,32 +1,56 @@
-# Namida History Analyzer
+# 🎵 Namida History Analyzer
 
-[English](README.md) | [简体中文](README_zh.md)
+**English** | [简体中文](README_zh.md)
 
 ---
 
-A beautiful, cross-platform desktop application built with **Flutter** and **Python** to analyze and visualize your listening history from Namida.
+A beautiful, cross-platform desktop application built with **Flutter** and **Python** to analyze and visualize your listening history from [Namida](https://github.com/namidaco/namida). Import your backup file and get your personal annual listening report.
 
 ## 🌟 Features
 
-- **Automated Data Analysis**: Extracts and crunches data directly from your Namida Backup ZIP file.
-- **Rich Dashboard**: Provides an elegant dashboard displaying key metrics (total listening hours, daily average, unique tracks, etc.).
-- **Interactive Charts**: Visualizes your listening history trends over time with smooth, interactive line charts.
-- **Detailed Leaderboards**: View your personal Top 10 tracks, artists, and albums, complete with dedicated detail pages.
-- **Listening Habits**: Analyzes your listening periods (Morning, Afternoon, Evening, Night) and weekly patterns.
-- **Local Metadata Matching**: Optional integration with your local music directory to supplement missing metadata and enhance the analysis.
+### 📊 Dashboard
+- **Key Metrics at a Glance**: Total listening hours, companion days, daily average, total plays, unique tracks/artists/albums, and favorite genre — all displayed in elegant color-coded cards.
+- **Year / All-Time Toggle**: Switch between different years or all-time stats via the top dropdown.
+
+### 📈 Interactive Charts
+- **Play Trend Line Chart**: Smooth, animated line chart showing daily play counts over time.
+- **Scroll to Zoom**: Mouse wheel zooms in/out on the timeline.
+- **Drag to Pan**: Click and drag to navigate across different time periods.
+- **Hover Tooltips**: Hover over any point to see the exact date and play count.
+
+### 🏆 Leaderboards
+- **Top 10 Tracks / Artists / Albums**: Displayed on the home screen, tap any item to open its dedicated detail page.
+- **Full Rankings**: Browse up to Top 500 tracks and Top 200 artists/albums.
+- **Monthly Top Song**: Track your most-looped song for each month of the year.
+
+### ⏰ Listening Habits
+- **Period Distribution**: Bar charts for Night (0-6), Morning (6-12), Afternoon (12-18), and Evening (18-23).
+- **Weekly Patterns**: Monday-to-Sunday play count visualization.
+
+### ⭐ Personalized Highlights
+- **Obsession Moment**: The day you looped a single song the most times.
+- **Latest Night Song**: The first track you listened to after midnight.
+- **Most Immersive Day**: The day with the highest total play count.
+
+### 🔧 Additional Capabilities
+- **Local Metadata Matching**: Optionally configure a local music directory to auto-scan audio file metadata (supports MP3, FLAC, M4A, WAV, OGG, OPUS, AAC, WMA) and enrich the analysis.
+- **Bilingual UI**: Built-in English and Chinese (中文) interface, switchable in settings.
+- **Material Design 3**: Deep purple themed, with automatic light/dark mode adaptation.
 
 ## 🛠️ Prerequisites
 
-To run and build this project, you will need:
-
-- **Flutter SDK**: Ensure you have Flutter installed. [Installation Guide](https://docs.flutter.dev/get-started/install)
-- **Python 3.x**: Ensure Python is installed and accessible from your system's `PATH`. The Flutter app invokes a Python script (`scripts/run_analysis.py`) to process the data.
+| Dependency | Version | Notes |
+|------------|---------|-------|
+| **Flutter SDK** | ≥ 3.8.1 | [Installation Guide](https://docs.flutter.dev/get-started/install) |
+| **Python** | ≥ 3.x | Must be accessible from system `PATH` |
+| **pandas** | - | Python data processing library |
+| **tinytag** | - | Python audio metadata library (optional, for local metadata matching) |
 
 ## 🚀 Getting Started
 
 1. **Clone the repository:**
    ```bash
-   git clone <your-repository-url>
+   git clone https://github.com/DiWu17/namida_history_app
    cd namida_history_app
    ```
 
@@ -35,34 +59,78 @@ To run and build this project, you will need:
    flutter pub get
    ```
 
-3. **Python Environment Preparation:**
-   Ensure your Python environment has the necessary standard libraries (or third-party packages if `run_analysis.py` requires them).
-   
-4. **Run the app:**
+3. **Install Python dependencies:**
    ```bash
-   flutter run -d windows  # Or macOS/Linux depending on your OS
+   pip install pandas tinytag
    ```
 
-## 📂 Project Structure
-
-- `lib/`: Contains the Flutter frontend source code.
-  - `screens/`: Application screens (`home_screen.dart`, detail screens, etc.).
-  - `widgets/`: Reusable UI components like `interactive_line_chart.dart`.
-  - `main.dart`: Application entry point.
-- `scripts/`: Contains the Python data analysis engine.
-  - `run_analysis.py`: The core script that parses the Namida backup ZIP and outputs a structured JSON report.
+4. **Run the app:**
+   ```bash
+   flutter run -d windows  # Or macOS / Linux
+   ```
 
 ## 📝 How to Use
 
 1. Launch the application.
-2. *(Optional)* Click the **Settings (⚙️)** icon in the top right to select your local music directory for better metadata extraction.
+2. *(Optional)* Click the **Settings (⚙️)** icon in the top right to select your local music directory for richer metadata.
 3. Click the **Select Backup ZIP** button and choose your exported Namida backup file (`.zip`).
-4. Wait a moment for the Python engine to extract and analyze the data.
-5. Explore your personal listening reports, discover your highest repeat tracks, and dive deep into specific artists or albums!
+4. Wait for the Python analysis engine to process the data (usually takes a few seconds).
+5. Explore your personal listening report! Check out leaderboards, play trends, listening habits, and tap on any track/artist/album for detailed insights.
+
+## 📂 Project Structure
+
+```
+namida_history_app/
+├── lib/                          # Flutter frontend
+│   ├── main.dart                 # App entry point, theme & routing
+│   ├── l10n/                     # Localization resource files
+│   ├── providers/                # State management (Provider)
+│   │   └── locale_provider.dart  # Language switching
+│   ├── screens/                  # App screens
+│   │   ├── home_screen.dart      # Main dashboard
+│   │   ├── track_detail_screen.dart   # Track details
+│   │   ├── artist_detail_screen.dart  # Artist details
+│   │   ├── album_detail_screen.dart   # Album details
+│   │   └── full_list_screen.dart      # Full leaderboard
+│   └── widgets/                  # Reusable components
+│       └── interactive_line_chart.dart # Interactive line chart
+├── scripts/                      # Python data analysis engine
+│   ├── run_analysis.py           # Analysis entry point
+│   ├── extractor.py              # ZIP backup extraction
+│   └── parser.py                 # Core data parsing & statistics
+└── pubspec.yaml                  # Flutter project configuration
+```
+
+## 🏗️ Tech Stack
+
+| Layer | Technology |
+|-------|------------|
+| **Frontend** | Flutter (Dart) |
+| **Charting** | fl_chart |
+| **State Management** | Provider |
+| **Localization** | intl + flutter_localizations |
+| **File Selection** | file_picker |
+| **Backend Engine** | Python 3 |
+| **Data Processing** | pandas |
+| **Audio Metadata** | tinytag |
+
+## 🔄 Data Flow
+
+```
+User selects Namida backup ZIP
+       ↓
+Flutter invokes Python script (scripts/run_analysis.py)
+       ↓
+Extract ZIP → Scan local music directory (optional) → Parse history JSON → Analyze
+       ↓
+Return structured JSON (grouped by year: "All Time", "2024", …)
+       ↓
+Flutter renders dashboard → User browses & interacts
+```
 
 ## 🤝 Contributing
 
-Contributions, issues, and feature requests are welcome! Feel free to check the issues page.
+Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](https://github.com/DiWu17/namida_history_app/issues).
 
 ## 📄 License
 

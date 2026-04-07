@@ -172,7 +172,7 @@ class Parser:
 
         latest_night_song = {"time": "", "track": ""}
         if 'datetime' in self.df.columns and track_col:
-            night_df = self.df[(self.df['datetime'].dt.hour >= 0) & (self.df['datetime'].dt.hour < 5)].copy()
+            night_df = self.df[(self.df['datetime'].dt.hour >= 0) & (self.df['datetime'].dt.hour < 6)].copy()
             if not night_df.empty:
                 night_df['time_only'] = night_df['datetime'].dt.time
                 latest_row = night_df.loc[night_df['time_only'].astype(str).idxmax()]
