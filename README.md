@@ -22,6 +22,7 @@ A beautiful, cross-platform desktop application built with **Flutter** and **Pyt
 - **Top 10 Tracks / Artists / Albums**: Displayed on the home screen, tap any item to open its dedicated detail page.
 - **Full Rankings**: Browse up to Top 500 tracks and Top 200 artists/albums.
 - **Monthly Top Song**: Track your most-looped song for each month of the year.
+- **Seamless Artist / Album Drill-Down**: From any artist or album detail page, tap a song in its top-10 list to jump directly to the track detail page.
 
 ### ⏰ Listening Habits
 - **Period Distribution**: Bar charts for Night (0-6), Morning (6-12), Afternoon (12-18), and Evening (18-23).
@@ -34,6 +35,8 @@ A beautiful, cross-platform desktop application built with **Flutter** and **Pyt
 
 ### 🔧 Additional Capabilities
 - **Local Metadata Matching**: Optionally configure a local music directory to auto-scan audio file metadata (supports MP3, FLAC, M4A, WAV, OGG, OPUS, AAC, WMA) and enrich the analysis.
+- **Lazy Track Detail Loading**: The top 300 tracks are pre-computed for instant access; all remaining tracks are resolved on-demand when you tap them and cached for subsequent views — no data is ever missing.
+- **Play in Namida**: On any track detail page, a play button lets you instantly start playback in the Namida player (if its executable is configured) or fall back to the system default player.
 - **Bilingual UI**: Built-in English and Chinese (中文) interface, switchable in settings.
 - **Material Design 3**: Deep purple themed, with automatic light/dark mode adaptation.
 
@@ -72,10 +75,13 @@ A beautiful, cross-platform desktop application built with **Flutter** and **Pyt
 ## 📝 How to Use
 
 1. Launch the application.
-2. *(Optional)* Click the **Settings (⚙️)** icon in the top right to select your local music directory for richer metadata.
+2. *(Optional)* Click the **Settings (⚙️)** icon in the top right to:
+   - Select your **local music directory** for richer audio metadata.
+   - Set the **Namida executable path** (`namida.exe`) to enable one-click playback from track detail pages.
 3. Click the **Select Backup ZIP** button and choose your exported Namida backup file (`.zip`).
 4. Wait for the Python analysis engine to process the data (usually takes a few seconds).
 5. Explore your personal listening report! Check out leaderboards, play trends, listening habits, and tap on any track/artist/album for detailed insights.
+6. On a track detail page, click the **▶ Play** button to open the song in Namida or your system default player.
 
 ## 📂 Project Structure
 
@@ -88,10 +94,14 @@ namida_history_app/
 │   │   └── locale_provider.dart  # Language switching
 │   ├── screens/                  # App screens
 │   │   ├── home_screen.dart      # Main dashboard
-│   │   ├── track_detail_screen.dart   # Track details
+│   │   ├── track_detail_screen.dart   # Track details + Namida playback
 │   │   ├── artist_detail_screen.dart  # Artist details
 │   │   ├── album_detail_screen.dart   # Album details
 │   │   └── full_list_screen.dart      # Full leaderboard
+│   ├── services/                 # Business logic & utilities
+│   │   ├── analysis_service.dart # Analysis engine (Dart isolate)
+│   │   ├── config_service.dart   # Persistent settings storage
+│   │   └── track_detail_resolver.dart # Lazy track detail lookup & cache
 │   └── widgets/                  # Reusable components
 │       └── interactive_line_chart.dart # Interactive line chart
 ├── scripts/                      # Python data analysis engine
@@ -113,6 +123,7 @@ namida_history_app/
 | **Backend Engine** | Python 3 |
 | **Data Processing** | pandas |
 | **Audio Metadata** | tinytag |
+| **Persistent Config** | shared_preferences |
 
 ## 🔄 Data Flow
 
@@ -126,6 +137,11 @@ Extract ZIP → Scan local music directory (optional) → Parse history JSON →
 Return structured JSON (grouped by year: "All Time", "2024", …)
        ↓
 Flutter renders dashboard → User browses & interacts
+       ↓
+Tap any track → resolveTrackDetail() checks top-300 cache,
+falls back to on-demand compute → TrackDetailScreen
+       ↓
+(Optional) Press ▶ Play → launch Namida or system default player
 ```
 
 ## 🤝 Contributing
