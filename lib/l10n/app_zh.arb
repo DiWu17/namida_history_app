@@ -82,5 +82,7 @@
   "noItemDetails": "暂无该项目详细信息"
   ,
   "fullListSuffix": "总榜",
-  "noDataAvailable": "暂无数据。"
+  "noDataAvailable": "暂无数据。",
+  "pythonPathHint": "指定 Python 解释器路径（如 conda 环境）",
+  "choosePythonExe": "选择 python.exe"
 }

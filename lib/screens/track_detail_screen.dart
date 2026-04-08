@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
 import '../widgets/interactive_line_chart.dart';
@@ -15,6 +16,8 @@ class TrackDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final int totalPlays = details['total_plays'] ?? 0;
+    final String coverPath = details['cover']?.toString() ?? '';
+    final bool hasCover = coverPath.isNotEmpty && File(coverPath).existsSync();
 
     return Scaffold(
       appBar: AppBar(
@@ -34,7 +37,19 @@ class TrackDetailScreen extends StatelessWidget {
               ),
               child: Column(
                 children: [
-                  const Icon(Icons.music_note_rounded, size: 80, color: Colors.blue),
+                  if (hasCover)
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: Image.file(
+                        File(coverPath),
+                        width: 160,
+                        height: 160,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => const Icon(Icons.music_note_rounded, size: 80, color: Colors.blue),
+                      ),
+                    )
+                  else
+                    const Icon(Icons.music_note_rounded, size: 80, color: Colors.blue),
                   const SizedBox(height: 16),
                   Text(
                     trackName,

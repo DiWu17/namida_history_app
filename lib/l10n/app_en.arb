@@ -88,5 +88,7 @@
   "noItemDetails": "No details available for this item"
   ,
   "fullListSuffix": "Full List",
-  "noDataAvailable": "No data available."
+  "noDataAvailable": "No data available.",
+  "pythonPathHint": "Specify the Python interpreter path (e.g. conda env)",
+  "choosePythonExe": "Select python.exe"
 }

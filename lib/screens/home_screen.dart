@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
@@ -7,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/locale_provider.dart';
 
+import '../services/analysis_service.dart';
 import '../services/config_service.dart';
 import '../widgets/interactive_line_chart.dart';
 import 'full_list_screen.dart';
@@ -146,40 +146,22 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
             .map((f) => f.path!)
             .toList();
         if (validPaths.isEmpty) return;
-        String zipArg = validPaths.join('|');
+
           setState(() {
           _isLoading = true;
           _statusMessage = _normalizeNewlines(l10n.extractingMessage);
           _allSummaries = null;
         });
 
-        // Resolve absolute path to python script
-        final scriptPath = 'scripts/run_analysis.py';
-        
-        List<String> args = [scriptPath, zipArg];
-        if (_musicDirectory != null) {
-          args.add(_musicDirectory!);
-        }
-        
-        final processResult = await Process.run('python', args);
+        final service = AnalysisService();
+        final parsed = await service.analyze(
+          validPaths,
+          _musicDirectory,
+          onProgress: (msg) {
+            if (mounted) setState(() => _statusMessage = msg);
+          },
+        );
 
-        if (processResult.exitCode != 0) {
-          throw Exception('Python Exit Code ${processResult.exitCode}\nError: ${processResult.stderr}');
-        }
-
-        final rawOutput = processResult.stdout.toString().trim();
-        if (rawOutput.isEmpty) {
-          throw Exception('No output returned from the script. Check python environment.');
-        }
-
-        String jsonText = rawOutput;
-        final startIdx = rawOutput.indexOf('{');
-        final endIdx = rawOutput.lastIndexOf('}');
-        if (startIdx != -1 && endIdx != -1) {
-          jsonText = rawOutput.substring(startIdx, endIdx + 1);
-        }
-
-        final parsed = jsonDecode(jsonText);
         if (parsed['success'] == true) {
             setState(() {
             _allSummaries = Map<String, dynamic>.from(parsed['summaries']);
@@ -200,7 +182,7 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
             _statusMessage = l10n.analysisComplete;
           });
         } else {
-          throw Exception(parsed['error'] ?? 'Unknown error occurred in script');
+          throw Exception(parsed['error'] ?? 'Unknown error');
         }
       }
     } catch (e) {
@@ -601,32 +583,20 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
       normalized[key.toString()] = value is int ? value : int.tryParse(value.toString()) ?? 0;
     });
 
-    final groupedKeys = ['night', 'morning', 'afternoon', 'evening'];
-    final isGrouped = normalized.keys.every((k) => groupedKeys.contains(k));
+    final sortedEntries = normalized.entries.toList()
+      ..sort((a, b) {
+        int hourOf(String key) {
+          final match = RegExp(r'^(\d{1,2})').firstMatch(key);
+          if (match == null) return 999;
+          return int.tryParse(match.group(1) ?? '') ?? 999;
+        }
 
-    final entries = normalized.entries.toList();
-    if (isGrouped) {
-      entries.sort((a, b) => groupedKeys.indexOf(a.key).compareTo(groupedKeys.indexOf(b.key)));
-    } else {
-      int hourOf(String key) {
-        final match = RegExp(r'^(\d{1,2})').firstMatch(key);
-        if (match == null) return 999;
-        return int.tryParse(match.group(1) ?? '') ?? 999;
-      }
+        return hourOf(a.key).compareTo(hourOf(b.key));
+      });
 
-      entries.sort((a, b) => hourOf(a.key).compareTo(hourOf(b.key)));
-    }
-
-    final maxVal = entries.isEmpty
-        ? 0
-        : entries.map((e) => e.value).reduce((a, b) => a > b ? a : b);
-
-    String labelFor(String key) {
-      if (key == 'night') return AppLocalizations.of(context)!.periodNight;
-      if (key == 'morning') return AppLocalizations.of(context)!.periodMorning;
-      if (key == 'afternoon') return AppLocalizations.of(context)!.periodAfternoon;
-      if (key == 'evening') return AppLocalizations.of(context)!.periodEvening;
-      return key;
+    final chartData = <String, int>{};
+    for (final entry in sortedEntries) {
+      chartData[entry.key] = entry.value;
     }
     
     return Container(
@@ -647,21 +617,13 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
         children: [
           Text(AppLocalizations.of(context)!.periodDistributionTitle, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 20),
-          for (int i = 0; i < entries.length; i++)
-            _buildSimpleBar(
-              labelFor(entries[i].key),
-              entries[i].value,
-              maxVal,
-              isGrouped
-                  ? (entries[i].key == 'night'
-                      ? Colors.indigo
-                      : entries[i].key == 'morning'
-                          ? Colors.lightBlue
-                          : entries[i].key == 'afternoon'
-                              ? Colors.orange
-                              : Colors.deepPurple)
-                  : Colors.teal,
+          SizedBox(
+            height: 240,
+            child: InteractiveLineChart(
+              historyData: chartData,
+              enablePanZoom: false,
             ),
+          ),
         ],
       ),
     );
@@ -941,18 +903,25 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
                 }
             } : null,
             contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-            leading: SizedBox(
-              width: 32,
-              child: Center(
-                child: Text(
-                  '#$rank',
-                  style: TextStyle(
-                    fontSize: rank <= 3 ? 20 : 16,
-                    fontWeight: rank <= 3 ? FontWeight.w900 : FontWeight.w600,
-                    color: rankColor,
+            leading: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: 32,
+                  child: Center(
+                    child: Text(
+                      '#$rank',
+                      style: TextStyle(
+                        fontSize: rank <= 3 ? 20 : 16,
+                        fontWeight: rank <= 3 ? FontWeight.w900 : FontWeight.w600,
+                        color: rankColor,
+                      ),
+                    ),
                   ),
                 ),
-              ),
+                const SizedBox(width: 8),
+                _buildCoverThumbnail(entry.key.toString(), detailsMap, icon, 40),
+              ],
             ),
             title: Text(
               entry.key.toString(), 
@@ -978,6 +947,41 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
           );
         },
       ),
+    );
+  }
+
+  Widget _buildCoverThumbnail(String name, Map<dynamic, dynamic>? detailsMap, IconData fallbackIcon, double size) {
+    final details = detailsMap?[name];
+    final String coverPath = details?['cover']?.toString() ?? '';
+    final bool hasCover = coverPath.isNotEmpty && File(coverPath).existsSync();
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(8),
+      child: hasCover
+          ? Image.file(
+              File(coverPath),
+              width: size,
+              height: size,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(
+                width: size,
+                height: size,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(fallbackIcon, size: size * 0.5, color: Theme.of(context).colorScheme.onPrimaryContainer),
+              ),
+            )
+          : Container(
+              width: size,
+              height: size,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(fallbackIcon, size: size * 0.5, color: Theme.of(context).colorScheme.onPrimaryContainer),
+            ),
     );
   }
 }

@@ -1,8 +1,16 @@
 import json
 import os
+import re
+import sys
+import tempfile
+import hashlib
 import pandas as pd
 from typing import List, Dict, Optional
 from tinytag import TinyTag
+
+def _dbg(msg):
+    """Print debug info to stderr (won't pollute JSON stdout)."""
+    print(f"[cover-debug] {msg}", file=sys.stderr)
 
 class Parser:
     def __init__(self, history_dir: str, music_dir: Optional[str] = None):
@@ -11,6 +19,160 @@ class Parser:
         self.raw_data: List[Dict] = []
         self.df: pd.DataFrame = pd.DataFrame()
         self.music_metadata: Dict[str, Dict] = {}
+        # Cover art: album_name -> cover file path, track_basename -> cover file path
+        self.covers_dir = os.path.join(tempfile.gettempdir(), "namida_covers")
+        os.makedirs(self.covers_dir, exist_ok=True)
+        self.album_covers: Dict[str, str] = {}
+        self.track_covers: Dict[str, str] = {}
+        self._cover_scan_count = 0
+        self._cover_extract_count = 0
+
+    @staticmethod
+    def _sanitize_filename(name: str) -> str:
+        """Sanitize a string to be safe as a filename."""
+        return re.sub(r'[<>:"/\\|?*]', '_', name).strip()[:100]
+
+    def _extract_cover(self, tag, base_name: str, album: Optional[str]):
+        """Extract cover art from a TinyTag object and save to covers directory."""
+        self._cover_scan_count += 1
+        image_data = None
+
+        # --- Strategy 1: TinyTag >= 2.0 uses tag.images (Images object) ---
+        try:
+            if hasattr(tag, 'images') and tag.images:
+                img_obj = tag.images
+                if hasattr(img_obj, 'front') and img_obj.front:
+                    if hasattr(img_obj.front, 'data'):
+                        image_data = img_obj.front.data
+                    elif isinstance(img_obj.front, bytes):
+                        image_data = img_obj.front
+                if image_data is None:
+                    # Try iterating
+                    try:
+                        for img in img_obj:
+                            if hasattr(img, 'data') and img.data:
+                                image_data = img.data
+                                break
+                            elif isinstance(img, bytes) and len(img) > 100:
+                                image_data = img
+                                break
+                    except TypeError:
+                        pass
+        except Exception as e:
+            if self._cover_scan_count <= 3:
+                _dbg(f"Strategy 1 failed for '{base_name}': {e}")
+
+        # --- Strategy 2: TinyTag < 2.0 uses tag._images (dict or bytes) ---
+        if image_data is None:
+            try:
+                raw = getattr(tag, '_images', None)
+                if raw:
+                    if isinstance(raw, bytes) and len(raw) > 100:
+                        image_data = raw
+                    elif isinstance(raw, dict):
+                        for v in raw.values():
+                            if isinstance(v, bytes) and len(v) > 100:
+                                image_data = v
+                                break
+                            if hasattr(v, 'data') and isinstance(v.data, bytes):
+                                image_data = v.data
+                                break
+                    elif isinstance(raw, list):
+                        for v in raw:
+                            if isinstance(v, bytes) and len(v) > 100:
+                                image_data = v
+                                break
+            except Exception as e:
+                if self._cover_scan_count <= 3:
+                    _dbg(f"Strategy 2 failed for '{base_name}': {e}")
+
+        # --- Strategy 3: tag._images_data (some tinytag forks) ---
+        if image_data is None:
+            for attr in ('_images_data', 'extra', '_image_data'):
+                try:
+                    raw = getattr(tag, attr, None)
+                    if isinstance(raw, bytes) and len(raw) > 100:
+                        image_data = raw
+                        break
+                except Exception:
+                    pass
+
+        # Debug first few files
+        if self._cover_scan_count <= 5:
+            tag_attrs = [a for a in dir(tag) if 'image' in a.lower() or 'picture' in a.lower() or '_image' in a]
+            _dbg(f"File '{base_name}': image-related attrs={tag_attrs}, "
+                 f"has images={hasattr(tag, 'images')}, "
+                 f"images value type={type(getattr(tag, 'images', None))}, "
+                 f"image_data found={image_data is not None and len(image_data) > 0 if image_data else False}")
+
+        if not image_data or len(image_data) < 100:
+            return
+
+        self._cover_extract_count += 1
+
+        # Determine file extension from magic bytes
+        ext = '.jpg'
+        if image_data[:8] == b'\x89PNG\r\n\x1a\n':
+            ext = '.png'
+
+        # Save per-album (deduplicate by album name)
+        if album and album not in ('Unknown Album', ''):
+            if album not in self.album_covers:
+                safe_name = self._sanitize_filename(album)
+                cover_path = os.path.join(self.covers_dir, f"album_{safe_name}{ext}")
+                try:
+                    with open(cover_path, 'wb') as f:
+                        f.write(image_data)
+                    self.album_covers[album] = cover_path
+                except Exception:
+                    pass
+
+        # Save per-track (use album cover if same, else save separately)
+        if album and album in self.album_covers:
+            self.track_covers[base_name] = self.album_covers[album]
+        else:
+            safe_name = self._sanitize_filename(base_name)
+            cover_path = os.path.join(self.covers_dir, f"track_{safe_name}{ext}")
+            try:
+                with open(cover_path, 'wb') as f:
+                    f.write(image_data)
+                self.track_covers[base_name] = cover_path
+            except Exception:
+                pass
+
+    def _get_track_cover(self, track_title: str) -> str:
+        """Get cover path for a track by its display title."""
+        # Try to find via track_base mapping in df
+        if not self.df.empty and 'title' in self.df.columns and 'track_base' in self.df.columns:
+            matches = self.df[self.df['title'] == track_title]
+            if not matches.empty:
+                base = matches.iloc[0]['track_base']
+                if base in self.track_covers:
+                    return self.track_covers[base]
+                # Fallback: try album cover
+                album = matches.iloc[0].get('album', '')
+                if album and album in self.album_covers:
+                    return self.album_covers[album]
+        return ""
+
+    def _get_artist_cover(self, artist_name: str) -> str:
+        """Get cover path for an artist (uses their most played track's cover)."""
+        if not self.df.empty and 'artist' in self.df.columns and 'track_base' in self.df.columns:
+            artist_df = self.df[self.df['artist'] == artist_name]
+            if not artist_df.empty:
+                # Find most played track's base_name
+                track_col = 'title' if 'title' in self.df.columns else 'track_name'
+                if track_col in artist_df.columns:
+                    top_track_title = artist_df[track_col].value_counts().idxmax()
+                    top_matches = artist_df[artist_df[track_col] == top_track_title]
+                    if not top_matches.empty:
+                        base = top_matches.iloc[0]['track_base']
+                        if base in self.track_covers:
+                            return self.track_covers[base]
+                        album = top_matches.iloc[0].get('album', '')
+                        if album and album in self.album_covers:
+                            return self.album_covers[album]
+        return ""
 
     def scan_music_directory(self):
         # Scans the music directory for audio files and extracts metadata.
@@ -24,7 +186,7 @@ class Parser:
                 if ext in supported_exts:
                     file_path = os.path.join(root, file)
                     try:
-                        tag = TinyTag.get(file_path)
+                        tag = TinyTag.get(file_path, image=True)
                         # Use lowercase filename without extension as key for better matching
                         base_name = os.path.splitext(file)[0].lower()
                         
@@ -39,8 +201,18 @@ class Parser:
                                 'duration': tag.duration or 0.0,
                                 'genre': tag.genre
                             }
-                    except Exception:
-                        pass
+                            # Extract cover art
+                            self._extract_cover(tag, base_name, tag.album)
+                    except Exception as e:
+                        if self._cover_scan_count <= 3:
+                            _dbg(f"Error processing '{file}': {e}")
+
+        _dbg(f"Scan complete: {len(self.music_metadata)} tracks scanned, "
+             f"{self._cover_scan_count} checked for covers, "
+             f"{self._cover_extract_count} covers extracted, "
+             f"{len(self.album_covers)} album covers, "
+             f"{len(self.track_covers)} track covers, "
+             f"covers_dir={self.covers_dir}")
 
     def load_all_history(self) -> pd.DataFrame:
         self.raw_data = []
@@ -79,7 +251,9 @@ class Parser:
             if 'dateAdded' in self.df.columns:
                 sample_val = self.df['dateAdded'].dropna().iloc[0] if not self.df['dateAdded'].dropna().empty else 1e12
                 unit = 'ms' if sample_val > 1e11 else 's'
-                self.df['datetime'] = pd.to_datetime(self.df['dateAdded'], unit=unit)
+                # Parse as UTC first, then convert to China Standard Time (UTC+8).
+                self.df['datetime'] = pd.to_datetime(self.df['dateAdded'], unit=unit, utc=True)
+                self.df['datetime'] = self.df['datetime'].dt.tz_convert('Asia/Shanghai').dt.tz_localize(None)
             
             if 'track' in self.df.columns:
                 self.df['track_name'] = self.df['track'].apply(lambda x: os.path.basename(str(x)))
@@ -214,7 +388,8 @@ class Parser:
                         "first_play": first_play,
                         "last_play": last_play,
                         "history": history,
-                        "total_plays": int(len(t_df))
+                        "total_plays": int(len(t_df)),
+                        "cover": self._get_track_cover(t_name)
                     }
 
         # 6. Artist Details
@@ -236,7 +411,8 @@ class Parser:
                         "last_play": last_play,
                         "history": history,
                         "total_plays": int(len(a_df)),
-                        "top_songs": top_songs
+                        "top_songs": top_songs,
+                        "cover": self._get_artist_cover(a_name)
                     }
 
         # 7. Album Details
@@ -258,7 +434,8 @@ class Parser:
                         "last_play": last_play,
                         "history": history,
                         "total_plays": int(len(al_df)),
-                        "top_songs": top_songs
+                        "top_songs": top_songs,
+                        "cover": self.album_covers.get(al_name, "")
                     }
 
         summary = {

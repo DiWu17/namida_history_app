@@ -559,6 +559,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No data available.'**
   String get noDataAvailable;
+
+  /// No description provided for @pythonPathHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Specify the Python interpreter path (e.g. conda env)'**
+  String get pythonPathHint;
+
+  /// No description provided for @choosePythonExe.
+  ///
+  /// In en, this message translates to:
+  /// **'Select python.exe'**
+  String get choosePythonExe;
 }
 
 class _AppLocalizationsDelegate

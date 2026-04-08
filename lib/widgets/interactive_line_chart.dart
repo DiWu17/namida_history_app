@@ -5,8 +5,13 @@ import '../l10n/app_localizations.dart';
 
 class InteractiveLineChart extends StatefulWidget {
   final Map<dynamic, dynamic> historyData;
+  final bool enablePanZoom;
 
-  const InteractiveLineChart({super.key, required this.historyData});
+  const InteractiveLineChart({
+    super.key,
+    required this.historyData,
+    this.enablePanZoom = true,
+  });
 
   @override
   State<InteractiveLineChart> createState() => _InteractiveLineChartState();
@@ -146,135 +151,141 @@ class _InteractiveLineChartState extends State<InteractiveLineChart> {
       return Center(child: Text(AppLocalizations.of(context)!.unknownLabel));
     }
 
+    final chart = Container(
+      color: Colors.transparent,
+      child: LineChart(
+        LineChartData(
+          clipData: const FlClipData.all(),
+          gridData: FlGridData(
+            show: true,
+            drawVerticalLine: false,
+            horizontalInterval: _maxVal > 5 ? _maxVal / 5 : 1,
+            getDrawingHorizontalLine: (value) {
+              return FlLine(
+                color: Theme.of(context).colorScheme.outlineVariant.withAlpha(50),
+                strokeWidth: 1,
+                dashArray: [5, 5],
+              );
+            },
+          ),
+          titlesData: FlTitlesData(
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 32,
+                interval: 1,
+                getTitlesWidget: (value, meta) {
+                  int index = value.toInt();
+                  if (index >= 0 && index < _totalPoints) {
+                    int currentSpan = (_maxX - _minX).ceil();
+                    int step = (currentSpan / 6).clamp(1, currentSpan).ceil();
+
+                    // Always show boundary dates conditionally, but spread 6 labels evenly
+                    if (index % step == 0 || index == _totalPoints - 1) {
+                      String dateStr = _sortedKeys[index];
+                      List<String> parts = dateStr.split('-');
+                      String display = parts.length >= 3 ? '${parts[1]}-${parts[2]}' : dateStr;
+                      return SideTitleWidget(
+                        axisSide: meta.axisSide,
+                        space: 8,
+                        child: Text(
+                          display,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      );
+                    }
+                  }
+                  return const SizedBox();
+                },
+              ),
+            ),
+            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            leftTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 40,
+                interval: _maxVal > 5 ? _maxVal / 5 : 1,
+                getTitlesWidget: (value, meta) {
+                  if (value == 0 || value == meta.max) return const SizedBox();
+                  return SideTitleWidget(
+                    axisSide: meta.axisSide,
+                    space: 8,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        value.toInt().toString(),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+          borderData: FlBorderData(show: false),
+          minX: _minX,
+          maxX: _maxX,
+          minY: 0,
+          maxY: (_maxVal * 1.2).ceilToDouble(),
+          lineBarsData: [
+            LineChartBarData(
+              spots: _spots,
+              isCurved: true,
+              curveSmoothness: 0.35,
+              color: Theme.of(context).colorScheme.primary,
+              barWidth: 3,
+              isStrokeCapRound: true,
+              dotData: const FlDotData(show: false),
+              belowBarData: BarAreaData(
+                show: true,
+                gradient: LinearGradient(
+                  colors: [
+                    Theme.of(context).colorScheme.primary.withAlpha(100),
+                    Theme.of(context).colorScheme.primary.withAlpha(10),
+                  ],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+              ),
+            ),
+          ],
+          lineTouchData: LineTouchData(
+            touchTooltipData: LineTouchTooltipData(
+              getTooltipItems: (touchedSpots) {
+                return touchedSpots.map((LineBarSpot touchedSpot) {
+                  int spotIndex = touchedSpot.x.toInt();
+                  if (spotIndex < 0) spotIndex = 0;
+                  if (spotIndex >= _totalPoints) spotIndex = _totalPoints - 1;
+                  final date = _sortedKeys[spotIndex];
+                  return LineTooltipItem(
+                    '$date\n${touchedSpot.y.toInt()} ${AppLocalizations.of(context)!.playsSuffix}',
+                    const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                  );
+                }).toList();
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+
+    if (!widget.enablePanZoom) {
+      return chart;
+    }
+
     return Listener(
       onPointerSignal: _handlePointerSignal,
       child: GestureDetector(
         onPanUpdate: _handlePanUpdate,
-        child: Container(
-          color: Colors.transparent,
-          child: LineChart(
-            LineChartData(
-              clipData: const FlClipData.all(),
-              gridData: FlGridData(
-                show: true,
-                drawVerticalLine: false,
-                horizontalInterval: _maxVal > 5 ? _maxVal / 5 : 1,
-                getDrawingHorizontalLine: (value) {
-                  return FlLine(
-                    color: Theme.of(context).colorScheme.outlineVariant.withAlpha(50),
-                    strokeWidth: 1,
-                    dashArray: [5, 5],
-                  );
-                },
-              ),
-              titlesData: FlTitlesData(
-                bottomTitles: AxisTitles(
-                  sideTitles: SideTitles(
-                    showTitles: true,
-                    reservedSize: 32,
-                    interval: 1,
-                    getTitlesWidget: (value, meta) {
-                      int index = value.toInt();
-                      if (index >= 0 && index < _totalPoints) {
-                        int currentSpan = (_maxX - _minX).ceil();
-                        int step = (currentSpan / 6).clamp(1, currentSpan).ceil();
-                        
-                        // Always show boundary dates conditionally, but spread 6 labels evenly
-                        if (index % step == 0 || index == _totalPoints - 1) {
-                          String dateStr = _sortedKeys[index];
-                          List<String> parts = dateStr.split('-');
-                          String display = parts.length >= 3 ? '${parts[1]}-${parts[2]}' : dateStr;
-                          return SideTitleWidget(
-                            axisSide: meta.axisSide,
-                            space: 8,
-                            child: Text(
-                              display,
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          );
-                        }
-                      }
-                      return const SizedBox();
-                    },
-                  ),
-                ),
-                rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                leftTitles: AxisTitles(
-                  sideTitles: SideTitles(
-                    showTitles: true,
-                    reservedSize: 40,
-                    interval: _maxVal > 5 ? _maxVal / 5 : 1,
-                    getTitlesWidget: (value, meta) {
-                      if (value == 0 || value == meta.max) return const SizedBox();
-                      return SideTitleWidget(
-                        axisSide: meta.axisSide,
-                        space: 8,
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Text(
-                            value.toInt().toString(),
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Theme.of(context).colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ),
-              borderData: FlBorderData(show: false),
-              minX: _minX,
-              maxX: _maxX,
-              minY: 0,
-              maxY: (_maxVal * 1.2).ceilToDouble(),
-              lineBarsData: [
-                LineChartBarData(
-                  spots: _spots,
-                  isCurved: true,
-                  curveSmoothness: 0.35,
-                  color: Theme.of(context).colorScheme.primary,
-                  barWidth: 3,
-                  isStrokeCapRound: true,
-                  dotData: const FlDotData(show: false),
-                  belowBarData: BarAreaData(
-                    show: true,
-                    gradient: LinearGradient(
-                      colors: [
-                        Theme.of(context).colorScheme.primary.withAlpha(100),
-                        Theme.of(context).colorScheme.primary.withAlpha(10),
-                      ],
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                    ),
-                  ),
-                ),
-              ],
-              lineTouchData: LineTouchData(
-                touchTooltipData: LineTouchTooltipData(
-                  getTooltipItems: (touchedSpots) {
-                    return touchedSpots.map((LineBarSpot touchedSpot) {
-                      int spotIndex = touchedSpot.x.toInt();
-                      if (spotIndex < 0) spotIndex = 0;
-                      if (spotIndex >= _totalPoints) spotIndex = _totalPoints - 1;
-                      final date = _sortedKeys[spotIndex];
-                      return LineTooltipItem(
-                        '$date\n${touchedSpot.y.toInt()} ${AppLocalizations.of(context)!.playsSuffix}',
-                        const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                      );
-                    }).toList();
-                  },
-                ),
-              ),
-            ),
-          ),
-        ),
+        child: chart,
       ),
     );
   }

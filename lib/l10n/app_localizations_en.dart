@@ -246,4 +246,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get noDataAvailable => 'No data available.';
+
+  @override
+  String get pythonPathHint =>
+      'Specify the Python interpreter path (e.g. conda env)';
+
+  @override
+  String get choosePythonExe => 'Select python.exe';
 }
