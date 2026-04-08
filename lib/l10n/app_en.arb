@@ -90,5 +90,13 @@
   "fullListSuffix": "Full List",
   "noDataAvailable": "No data available.",
   "pythonPathHint": "Specify the Python interpreter path (e.g. conda env)",
-  "choosePythonExe": "Select python.exe"
+  "choosePythonExe": "Select python.exe",
+  "namidaPathLabel": "Namida Player Path",
+  "namidaPathHint": "Set to play songs directly in Namida",
+  "chooseNamidaExe": "Select namida.exe",
+  "playInNamida": "Play in Namida",
+  "openWithDefault": "Open with default player",
+  "fileNotFound": "Local music file not found",
+  "needMusicDir": "Please configure music folder path in settings first",
+  "launchFailed": "Launch failed"
 }

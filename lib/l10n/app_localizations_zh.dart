@@ -250,4 +250,28 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get choosePythonExe => '选择 python.exe';
+
+  @override
+  String get namidaPathLabel => 'Namida 播放器路径';
+
+  @override
+  String get namidaPathHint => '设置后可直接在 Namida 中播放歌曲';
+
+  @override
+  String get chooseNamidaExe => '选择 namida.exe';
+
+  @override
+  String get playInNamida => '在 Namida 中播放';
+
+  @override
+  String get openWithDefault => '用默认播放器打开';
+
+  @override
+  String get fileNotFound => '未找到本地音乐文件';
+
+  @override
+  String get needMusicDir => '请先在设置中配置音乐文件夹路径';
+
+  @override
+  String get launchFailed => '启动失败';
 }

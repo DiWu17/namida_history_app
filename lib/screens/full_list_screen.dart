@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
+import '../services/track_detail_resolver.dart';
 import 'track_detail_screen.dart';
 import 'artist_detail_screen.dart';
 import 'album_detail_screen.dart';
@@ -11,6 +12,8 @@ class FullListScreen extends StatelessWidget {
   final IconData icon;
   final String type;
   final Map<dynamic, dynamic>? detailsMap;
+  final Map<dynamic, dynamic>? trackDetailsMap;
+  final Map<dynamic, dynamic>? allTrackCompact;
 
   const FullListScreen({
     super.key,
@@ -19,6 +22,8 @@ class FullListScreen extends StatelessWidget {
     required this.icon,
     this.type = 'none',
     this.detailsMap,
+    this.trackDetailsMap,
+    this.allTrackCompact,
   });
 
   @override
@@ -58,19 +63,19 @@ class FullListScreen extends StatelessWidget {
           return ListTile(
             onTap: type != 'none' ? () {
               final name = entry.key.toString();
-              final details = detailsMap?[name];
-
+              final compact = type == 'track' ? allTrackCompact : null;
+              final details = resolveTrackDetail(name, detailsMap, compact);
               if (details != null) {
-                  if (type == 'track') {
-                    Navigator.push(context, MaterialPageRoute(builder: (ctx) => TrackDetailScreen(trackName: name, details: details)));
-                  } else if (type == 'artist') {
-                    Navigator.push(context, MaterialPageRoute(builder: (ctx) => ArtistDetailScreen(artistName: name, details: details)));
-                  } else if (type == 'album') {
-                    Navigator.push(context, MaterialPageRoute(builder: (ctx) => AlbumDetailScreen(albumName: name, details: details)));
-                  }
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.noItemDetails)));
+                if (type == 'track') {
+                  Navigator.push(context, MaterialPageRoute(builder: (ctx) => TrackDetailScreen(trackName: name, details: details)));
+                } else if (type == 'artist') {
+                  Navigator.push(context, MaterialPageRoute(builder: (ctx) => ArtistDetailScreen(artistName: name, details: details, trackDetails: trackDetailsMap, allTrackCompact: allTrackCompact)));
+                } else if (type == 'album') {
+                  Navigator.push(context, MaterialPageRoute(builder: (ctx) => AlbumDetailScreen(albumName: name, details: details, trackDetails: trackDetailsMap, allTrackCompact: allTrackCompact)));
                 }
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.noItemDetails)));
+              }
             } : null,
             contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
             leading: Row(

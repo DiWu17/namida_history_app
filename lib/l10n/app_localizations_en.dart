@@ -253,4 +253,29 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get choosePythonExe => 'Select python.exe';
+
+  @override
+  String get namidaPathLabel => 'Namida Player Path';
+
+  @override
+  String get namidaPathHint => 'Set to play songs directly in Namida';
+
+  @override
+  String get chooseNamidaExe => 'Select namida.exe';
+
+  @override
+  String get playInNamida => 'Play in Namida';
+
+  @override
+  String get openWithDefault => 'Open with default player';
+
+  @override
+  String get fileNotFound => 'Local music file not found';
+
+  @override
+  String get needMusicDir =>
+      'Please configure music folder path in settings first';
+
+  @override
+  String get launchFailed => 'Launch failed';
 }

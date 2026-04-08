@@ -1,16 +1,22 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
+import '../services/track_detail_resolver.dart';
 import '../widgets/interactive_line_chart.dart';
+import 'track_detail_screen.dart';
 
 class ArtistDetailScreen extends StatelessWidget {
   final String artistName;
   final Map<dynamic, dynamic> details;
+  final Map<dynamic, dynamic>? trackDetails;
+  final Map<dynamic, dynamic>? allTrackCompact;
 
   const ArtistDetailScreen({
     super.key,
     required this.artistName,
     required this.details,
+    this.trackDetails,
+    this.allTrackCompact,
   });
 
   @override
@@ -126,6 +132,15 @@ class ArtistDetailScreen extends StatelessWidget {
                     else if (rank == 3) rankColor = Colors.brown.shade300;
 
                     return ListTile(
+                      onTap: () {
+                        final trackName = entry.key.toString();
+                        final td = resolveTrackDetail(trackName, trackDetails, allTrackCompact);
+                        if (td != null) {
+                          Navigator.push(context, MaterialPageRoute(builder: (ctx) => TrackDetailScreen(trackName: trackName, details: td)));
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.noTrackDetails)));
+                        }
+                      },
                       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                       leading: SizedBox(
                         width: 32,

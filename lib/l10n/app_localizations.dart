@@ -571,6 +571,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Select python.exe'**
   String get choosePythonExe;
+
+  /// No description provided for @namidaPathLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Namida Player Path'**
+  String get namidaPathLabel;
+
+  /// No description provided for @namidaPathHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Set to play songs directly in Namida'**
+  String get namidaPathHint;
+
+  /// No description provided for @chooseNamidaExe.
+  ///
+  /// In en, this message translates to:
+  /// **'Select namida.exe'**
+  String get chooseNamidaExe;
+
+  /// No description provided for @playInNamida.
+  ///
+  /// In en, this message translates to:
+  /// **'Play in Namida'**
+  String get playInNamida;
+
+  /// No description provided for @openWithDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Open with default player'**
+  String get openWithDefault;
+
+  /// No description provided for @fileNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Local music file not found'**
+  String get fileNotFound;
+
+  /// No description provided for @needMusicDir.
+  ///
+  /// In en, this message translates to:
+  /// **'Please configure music folder path in settings first'**
+  String get needMusicDir;
+
+  /// No description provided for @launchFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Launch failed'**
+  String get launchFailed;
 }
 
 class _AppLocalizationsDelegate

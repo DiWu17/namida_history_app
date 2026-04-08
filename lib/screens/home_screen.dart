@@ -8,6 +8,7 @@ import '../providers/locale_provider.dart';
 
 import '../services/analysis_service.dart';
 import '../services/config_service.dart';
+import '../services/track_detail_resolver.dart';
 import '../widgets/interactive_line_chart.dart';
 import 'full_list_screen.dart';
 import 'track_detail_screen.dart';
@@ -27,11 +28,13 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
   Map<String, dynamic>? _allSummaries;
   String _selectedYear = '';
   String? _musicDirectory;
+  String? _namidaPath;
 
   @override
   void initState() {
     super.initState();
     _musicDirectory = ConfigService().get('music_directory');
+    _namidaPath = ConfigService().get('namida_path');
   }
 
   void _showSettingsDialog() {
@@ -78,6 +81,48 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
                           _musicDirectory = null;
                         });
                         ConfigService().remove('music_directory');
+                        setDialogState(() {});
+                      },
+                      icon: const Icon(Icons.clear, size: 16),
+                      label: Text(l10n.clearPath),
+                    ),
+                  ],
+                  const Divider(height: 32),
+                  Text('${l10n.namidaPathLabel}:'),
+                  const SizedBox(height: 8),
+                  Text(
+                    l10n.namidaPathHint,
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 16),
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      FilePickerResult? result = await FilePicker.platform.pickFiles(
+                        type: FileType.custom,
+                        allowedExtensions: ['exe'],
+                      );
+                      if (result != null && result.files.single.path != null) {
+                        final path = result.files.single.path!;
+                        setState(() {
+                          _namidaPath = path;
+                        });
+                        ConfigService().set('namida_path', path);
+                        setDialogState(() {});
+                      }
+                    },
+                    icon: const Icon(Icons.music_note_rounded),
+                    label: Text(_namidaPath == null
+                      ? l10n.chooseNamidaExe
+                      : '...${_namidaPath!.length > 20 ? _namidaPath!.substring(_namidaPath!.length - 20) : _namidaPath}'),
+                  ),
+                  if (_namidaPath != null) ...[
+                    const SizedBox(height: 8),
+                    TextButton.icon(
+                      onPressed: () {
+                        setState(() {
+                          _namidaPath = null;
+                        });
+                        ConfigService().remove('namida_path');
                         setDialogState(() {});
                       },
                       icon: const Icon(Icons.clear, size: 16),
@@ -403,13 +448,13 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
 
           _buildSectionTitle(AppLocalizations.of(context)!.sectionTopLists),
           if (summary['most_played'] != null && (summary['most_played'] as Map).isNotEmpty)
-            _buildListSection(AppLocalizations.of(context)!.annualTopTracks, summary['most_played'], Icons.music_note, Colors.blue, type: 'track', detailsMap: summary['track_details']),
+            _buildListSection(AppLocalizations.of(context)!.annualTopTracks, summary['most_played'], Icons.music_note, Colors.blue, type: 'track', detailsMap: summary['track_details'], trackDetailsMap: summary['track_details'], allTrackCompact: summary['all_track_compact']),
           if (summary['top_artists'] != null && (summary['top_artists'] as Map).isNotEmpty)
-            _buildListSection(AppLocalizations.of(context)!.annualTopArtists, summary['top_artists'], Icons.person, Colors.purple, type: 'artist', detailsMap: summary['artist_details']),
+            _buildListSection(AppLocalizations.of(context)!.annualTopArtists, summary['top_artists'], Icons.person, Colors.purple, type: 'artist', detailsMap: summary['artist_details'], trackDetailsMap: summary['track_details'], allTrackCompact: summary['all_track_compact']),
           if (summary['top_albums'] != null && (summary['top_albums'] as Map).isNotEmpty)
-            _buildListSection(AppLocalizations.of(context)!.annualTopAlbums, summary['top_albums'], Icons.album, Colors.deepOrange, type: 'album', detailsMap: summary['album_details']),
+            _buildListSection(AppLocalizations.of(context)!.annualTopAlbums, summary['top_albums'], Icons.album, Colors.deepOrange, type: 'album', detailsMap: summary['album_details'], trackDetailsMap: summary['track_details'], allTrackCompact: summary['all_track_compact']),
           if (summary['monthly_top_song'] != null && (summary['monthly_top_song'] as Map).isNotEmpty)
-            _buildMonthlyTopSongMap(summary['monthly_top_song'], summary['track_details']),
+            _buildMonthlyTopSongMap(summary['monthly_top_song'], summary['track_details'], summary['all_track_compact']),
           const SizedBox(height: 32),
 
           _buildSectionTitle(AppLocalizations.of(context)!.sectionTimeDimension),
@@ -432,7 +477,8 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
               Icons.repeat_one_rounded,
               Colors.indigo,
               trackName: summary['single_day_repeat_max']['track'].toString(),
-              trackDetails: summary['track_details']
+              trackDetails: summary['track_details'],
+              allTrackCompact: summary['all_track_compact'],
             ),
           const SizedBox(height: 16),
           if (summary['latest_night_song'] != null && summary['latest_night_song']['time'] != "")
@@ -445,7 +491,8 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
               Icons.nights_stay_rounded,
               Colors.deepPurple,
               trackName: summary['latest_night_song']['track'].toString(),
-              trackDetails: summary['track_details']
+              trackDetails: summary['track_details'],
+              allTrackCompact: summary['all_track_compact'],
             ),
           const SizedBox(height: 16),
           if (summary['most_immersive_day'] != null && summary['most_immersive_day']['count'] > 0)
@@ -483,7 +530,7 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
     );
   }
 
-  Widget _buildListSection(String title, Map<dynamic, dynamic> data, IconData icon, Color iconColor, {String type = 'none', Map<dynamic, dynamic>? detailsMap}) {
+  Widget _buildListSection(String title, Map<dynamic, dynamic> data, IconData icon, Color iconColor, {String type = 'none', Map<dynamic, dynamic>? detailsMap, Map<dynamic, dynamic>? trackDetailsMap, Map<dynamic, dynamic>? allTrackCompact}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -493,20 +540,20 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
              Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
              TextButton(
                onPressed: () {
-                 Navigator.push(context, MaterialPageRoute(builder: (ctx) => FullListScreen(title: title.replaceAll(' Top 10', ''), data: data, icon: icon, type: type, detailsMap: detailsMap)));
+                 Navigator.push(context, MaterialPageRoute(builder: (ctx) => FullListScreen(title: title.replaceAll(' Top 10', ''), data: data, icon: icon, type: type, detailsMap: detailsMap, trackDetailsMap: trackDetailsMap, allTrackCompact: allTrackCompact)));
                },
                child: Text(AppLocalizations.of(context)!.viewFullList, style: const TextStyle(fontWeight: FontWeight.bold)),
              ),
           ]
         ),
         const SizedBox(height: 12),
-        _buildTopList(data, icon: icon, type: type, detailsMap: detailsMap),
+        _buildTopList(data, icon: icon, type: type, detailsMap: detailsMap, trackDetailsMap: trackDetailsMap, allTrackCompact: allTrackCompact),
         const SizedBox(height: 24),
       ],
     );
   }
 
-  Widget _buildMonthlyTopSongMap(Map<dynamic, dynamic> data, Map<dynamic, dynamic>? trackDetails) {
+  Widget _buildMonthlyTopSongMap(Map<dynamic, dynamic> data, Map<dynamic, dynamic>? trackDetails, Map<dynamic, dynamic>? allTrackCompact) {
     final sortedKeys = data.keys.toList()..sort();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -533,7 +580,7 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
               final trackName = data[key].toString();
                   return ListTile(
                 onTap: () {
-                  final details = trackDetails?[trackName];
+                  final details = resolveTrackDetail(trackName, trackDetails, allTrackCompact);
                   if (details != null) {
                     Navigator.push(context, MaterialPageRoute(builder: (ctx) => TrackDetailScreen(trackName: trackName, details: details)));
                   } else {
@@ -723,7 +770,7 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
     );
   }
 
-  Widget _buildHighlightCard(String title, String subtitle, IconData icon, Color color, {String? trackName, Map<dynamic, dynamic>? trackDetails}) {
+  Widget _buildHighlightCard(String title, String subtitle, IconData icon, Color color, {String? trackName, Map<dynamic, dynamic>? trackDetails, Map<dynamic, dynamic>? allTrackCompact}) {
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -739,7 +786,7 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
         child: InkWell(
           borderRadius: BorderRadius.circular(20),
           onTap: trackName != null ? () {
-            final details = trackDetails?[trackName];
+            final details = resolveTrackDetail(trackName, trackDetails, allTrackCompact);
             if (details != null) {
               Navigator.push(context, MaterialPageRoute(builder: (ctx) => TrackDetailScreen(trackName: trackName, details: details)));
             } else {
@@ -852,7 +899,7 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
     );
   }
 
-  Widget _buildTopList(Map<dynamic, dynamic> mostPlayed, {IconData icon = Icons.music_note, String type = 'none', Map<dynamic, dynamic>? detailsMap, int maxItems = 10}) {
+  Widget _buildTopList(Map<dynamic, dynamic> mostPlayed, {IconData icon = Icons.music_note, String type = 'none', Map<dynamic, dynamic>? detailsMap, Map<dynamic, dynamic>? trackDetailsMap, Map<dynamic, dynamic>? allTrackCompact, int maxItems = 10}) {
     if (mostPlayed.isEmpty) {
       return const Text('No data available.');
     }
@@ -888,15 +935,15 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
           return ListTile(
             onTap: type != 'none' ? () {
               final name = entry.key.toString();
-              final details = detailsMap?[name];
+              final details = resolveTrackDetail(name, detailsMap, allTrackCompact);
               
               if (details != null) {
                 if (type == 'track') {
                   Navigator.push(context, MaterialPageRoute(builder: (ctx) => TrackDetailScreen(trackName: name, details: details)));
                 } else if (type == 'artist') {
-                  Navigator.push(context, MaterialPageRoute(builder: (ctx) => ArtistDetailScreen(artistName: name, details: details)));
+                  Navigator.push(context, MaterialPageRoute(builder: (ctx) => ArtistDetailScreen(artistName: name, details: details, trackDetails: trackDetailsMap, allTrackCompact: allTrackCompact)));
                 } else if (type == 'album') {
-                  Navigator.push(context, MaterialPageRoute(builder: (ctx) => AlbumDetailScreen(albumName: name, details: details)));
+                  Navigator.push(context, MaterialPageRoute(builder: (ctx) => AlbumDetailScreen(albumName: name, details: details, trackDetails: trackDetailsMap, allTrackCompact: allTrackCompact)));
                 }
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.noItemDetails)));

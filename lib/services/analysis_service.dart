@@ -209,6 +209,7 @@ class AnalysisService {
             'title': common.title,
             'duration': duration,
             'genre': common.genre?.firstOrNull,
+            'localPath': entity.path,
           };
 
           // Extract cover art
@@ -320,6 +321,7 @@ class AnalysisService {
           ? (meta!['duration'] as num).toDouble()
           : 0.0;
       r['genre'] = _metaStr(meta, 'genre', 'Unknown Genre');
+      r['localPath'] = meta?['localPath']?.toString() ?? '';
 
       // Parse datetime → CST (UTC+8)
       final dateAdded = r['dateAdded'];
@@ -530,6 +532,7 @@ class AnalysisService {
         'history': history,
         'total_plays': tRecords.length,
         'cover': _getTrackCover(tName, records),
+        'localPath': tRecords.firstWhere((r) => (r['localPath']?.toString() ?? '').isNotEmpty, orElse: () => {})['localPath']?.toString() ?? '',
       };
     }
 
@@ -585,6 +588,42 @@ class AnalysisService {
       };
     }
 
+    // ---- 8. Compact data for remaining tracks (lazy loading in UI) ----
+    // Pre-group records by title once (O(n)) to avoid O(n×m) repeated scans.
+    final recordsByTitle = <String, List<Map<String, dynamic>>>{};
+    for (final r in records) {
+      final title = r['title'] as String?;
+      if (title != null && title.isNotEmpty) {
+        recordsByTitle.putIfAbsent(title, () => []).add(r);
+      }
+    }
+    final allTrackCompact = <String, dynamic>{};
+    for (final entry in recordsByTitle.entries) {
+      final tName = entry.key;
+      if (trackDetails.containsKey(tName)) continue; // already pre-computed
+      final tRecords = entry.value;
+      final datetimes = tRecords
+          .map((r) => r['datetime'])
+          .whereType<DateTime>()
+          .toList();
+      final history = _dateHistogram(tRecords);
+      allTrackCompact[tName] = {
+        'first_play': datetimes.isNotEmpty
+            ? _fmtDt(datetimes.reduce((a, b) => a.isBefore(b) ? a : b))
+            : 'Unknown',
+        'last_play': datetimes.isNotEmpty
+            ? _fmtDt(datetimes.reduce((a, b) => a.isAfter(b) ? a : b))
+            : 'Unknown',
+        'history': history,
+        'total_plays': tRecords.length,
+        'cover': _getTrackCover(tName, tRecords),
+        'localPath': tRecords.firstWhere(
+          (r) => (r['localPath']?.toString() ?? '').isNotEmpty,
+          orElse: () => {},
+        )['localPath']?.toString() ?? '',
+      };
+    }
+
     return {
       'total_plays': records.length,
       'total_days': totalDays,
@@ -607,6 +646,7 @@ class AnalysisService {
       'track_details': trackDetails,
       'artist_details': artistDetails,
       'album_details': albumDetails,
+      'all_track_compact': allTrackCompact,
     };
   }
 
