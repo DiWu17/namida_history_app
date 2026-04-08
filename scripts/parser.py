@@ -149,7 +149,7 @@ class Parser:
 
         # 3. Time Dimension
         play_history_by_date = {}
-        listening_periods = {"night": 0, "morning": 0, "afternoon": 0, "evening": 0}
+        listening_periods = {f"{hour:02d}:00": 0 for hour in range(24)}
         weekly_pattern = {"Mon": 0, "Tue": 0, "Wed": 0, "Thu": 0, "Fri": 0, "Sat": 0, "Sun": 0}
         
         if 'datetime' in self.df.columns:
@@ -157,10 +157,9 @@ class Parser:
              play_history_by_date = {str(k): int(v) for k, v in self.df['date_only'].value_counts().sort_index().items()}
              
              hours = self.df['datetime'].dt.hour
-             listening_periods["night"] = int(((hours >= 0) & (hours < 6)).sum())
-             listening_periods["morning"] = int(((hours >= 6) & (hours < 12)).sum())
-             listening_periods["afternoon"] = int(((hours >= 12) & (hours < 18)).sum())
-             listening_periods["evening"] = int(((hours >= 18) & (hours <= 23)).sum())
+             hour_counts = hours.value_counts()
+             for hour, count in hour_counts.items():
+                 listening_periods[f"{int(hour):02d}:00"] = int(count)
              
              day_names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
              day_counts = self.df['datetime'].dt.dayofweek.value_counts()

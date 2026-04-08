@@ -596,7 +596,38 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
   }
 
   Widget _buildPeriodsCard(Map<dynamic, dynamic> periods) {
-    int maxVal = periods.values.fold(0, (prev, val) => val > prev ? val : prev);
+    final normalized = <String, int>{};
+    periods.forEach((key, value) {
+      normalized[key.toString()] = value is int ? value : int.tryParse(value.toString()) ?? 0;
+    });
+
+    final groupedKeys = ['night', 'morning', 'afternoon', 'evening'];
+    final isGrouped = normalized.keys.every((k) => groupedKeys.contains(k));
+
+    final entries = normalized.entries.toList();
+    if (isGrouped) {
+      entries.sort((a, b) => groupedKeys.indexOf(a.key).compareTo(groupedKeys.indexOf(b.key)));
+    } else {
+      int hourOf(String key) {
+        final match = RegExp(r'^(\d{1,2})').firstMatch(key);
+        if (match == null) return 999;
+        return int.tryParse(match.group(1) ?? '') ?? 999;
+      }
+
+      entries.sort((a, b) => hourOf(a.key).compareTo(hourOf(b.key)));
+    }
+
+    final maxVal = entries.isEmpty
+        ? 0
+        : entries.map((e) => e.value).reduce((a, b) => a > b ? a : b);
+
+    String labelFor(String key) {
+      if (key == 'night') return AppLocalizations.of(context)!.periodNight;
+      if (key == 'morning') return AppLocalizations.of(context)!.periodMorning;
+      if (key == 'afternoon') return AppLocalizations.of(context)!.periodAfternoon;
+      if (key == 'evening') return AppLocalizations.of(context)!.periodEvening;
+      return key;
+    }
     
     return Container(
       padding: const EdgeInsets.all(24.0),
@@ -616,10 +647,21 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
         children: [
           Text(AppLocalizations.of(context)!.periodDistributionTitle, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 20),
-          _buildSimpleBar(AppLocalizations.of(context)!.periodNight, periods['night'] ?? 0, maxVal, Colors.indigo),
-          _buildSimpleBar(AppLocalizations.of(context)!.periodMorning, periods['morning'] ?? 0, maxVal, Colors.lightBlue),
-          _buildSimpleBar(AppLocalizations.of(context)!.periodAfternoon, periods['afternoon'] ?? 0, maxVal, Colors.orange),
-          _buildSimpleBar(AppLocalizations.of(context)!.periodEvening, periods['evening'] ?? 0, maxVal, Colors.deepPurple),
+          for (int i = 0; i < entries.length; i++)
+            _buildSimpleBar(
+              labelFor(entries[i].key),
+              entries[i].value,
+              maxVal,
+              isGrouped
+                  ? (entries[i].key == 'night'
+                      ? Colors.indigo
+                      : entries[i].key == 'morning'
+                          ? Colors.lightBlue
+                          : entries[i].key == 'afternoon'
+                              ? Colors.orange
+                              : Colors.deepPurple)
+                  : Colors.teal,
+            ),
         ],
       ),
     );
