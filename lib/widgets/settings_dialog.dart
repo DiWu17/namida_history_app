@@ -46,7 +46,7 @@ void showSettingsDialog({
                   icon: const Icon(Icons.folder_open),
                   label: Text(musicDirectory == null
                     ? l10n.chooseMusicFolder
-                    : '...${musicDirectory!.length > 20 ? musicDirectory!.substring(musicDirectory!.length - 20) : musicDirectory}'),
+                    : '...${musicDirectory.length > 20 ? musicDirectory.substring(musicDirectory.length - 20) : musicDirectory}'),
                 ),
                 if (musicDirectory != null) ...[
                   const SizedBox(height: 8),
@@ -110,7 +110,7 @@ void showSettingsDialog({
                       icon: const Icon(Icons.music_note_rounded),
                       label: Text(namidaPath == null
                         ? l10n.chooseNamidaExe
-                        : '...${namidaPath!.length > 20 ? namidaPath!.substring(namidaPath!.length - 20) : namidaPath}'),
+                        : '...${namidaPath.length > 20 ? namidaPath.substring(namidaPath.length - 20) : namidaPath}'),
                     ),
                     if (namidaPath != null) ...[
                       const SizedBox(height: 8),

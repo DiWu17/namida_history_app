@@ -307,7 +307,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget _buildMusicDirTile(AppLocalizations l10n) {
     return ListTile(
       leading: const Icon(Icons.folder_open),
-      title: Text('${l10n.optionalPath}'),
+      title: Text(l10n.optionalPath),
       subtitle: Text(
         _musicDirectory ?? l10n.chooseMusicFolder,
         maxLines: 1,
@@ -346,7 +346,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           try {
             await Process.run('am', ['start', '-n', 'com.msob7y.namida/.MainActivity']);
           } catch (e) {
-            if (context.mounted) {
+            if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${l10n.launchFailed}: $e')));
             }
           }
