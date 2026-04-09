@@ -61,7 +61,7 @@ A beautiful, cross-platform desktop application built with **Flutter** to analyz
 
 3. **Run the app:**
    ```bash
-   flutter run -d windows  # Or macOS / Linux
+   flutter run -d windows  # Or android / linux
    ```
 
 ## 📝 How to Use
@@ -128,6 +128,12 @@ falls back to on-demand compute → TrackDetailScreen
        ↓
 (Optional) Press ▶ Play → launch Namida or system default player
 ```
+
+## 🙏 Special Thanks
+
+- [@MSOB7YY](https://github.com/MSOB7YY) — Creator of Namida, for building such an original and inspiring project.
+- **Flutter Team** — For developing such an outstanding framework.
+- All open-source package maintainers and contributors who made Namida Charts possible.
 
 ## 🤝 Contributing
 

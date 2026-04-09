@@ -61,7 +61,7 @@
 
 3. **运行应用：**
    ```bash
-   flutter run -d windows  # 或 macOS / Linux
+   flutter run -d windows  # 或 android / linux
    ```
 
 ## 📝 使用方法
@@ -128,6 +128,12 @@ Flutter 渲染仪表盘 → 用户浏览 & 交互
        ↓
 （可选）点击 ▶ 播放 → 启动 Namida 或系统默认播放器
 ```
+
+## 🙏 特别鸣谢
+
+- [@MSOB7YY](https://github.com/MSOB7YY) — Namida 的创始人，感谢他创作了这个原创且鼓舞人心的项目。
+- **Flutter 团队** — 感谢你们开发出如此出色的框架。
+- 感谢所有为 Namida Charts 做出贡献的开源软件包维护者和贡献者。
 
 ## 🤝 贡献与反馈
 
