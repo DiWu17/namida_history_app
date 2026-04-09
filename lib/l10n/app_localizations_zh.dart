@@ -246,12 +246,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get noDataAvailable => '暂无数据。';
 
   @override
-  String get pythonPathHint => '指定 Python 解释器路径（如 conda 环境）';
-
-  @override
-  String get choosePythonExe => '选择 python.exe';
-
-  @override
   String get namidaPathLabel => 'Namida 播放器路径';
 
   @override

@@ -248,13 +248,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noDataAvailable => 'No data available.';
 
   @override
-  String get pythonPathHint =>
-      'Specify the Python interpreter path (e.g. conda env)';
-
-  @override
-  String get choosePythonExe => 'Select python.exe';
-
-  @override
   String get namidaPathLabel => 'Namida Player Path';
 
   @override

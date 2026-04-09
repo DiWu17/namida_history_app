@@ -83,8 +83,6 @@
   ,
   "fullListSuffix": "总榜",
   "noDataAvailable": "暂无数据。",
-  "pythonPathHint": "指定 Python 解释器路径（如 conda 环境）",
-  "choosePythonExe": "选择 python.exe",
   "namidaPathLabel": "Namida 播放器路径",
   "namidaPathHint": "设置后可直接在 Namida 中播放歌曲",
   "chooseNamidaExe": "选择 namida.exe",

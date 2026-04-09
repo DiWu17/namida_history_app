@@ -4,7 +4,7 @@
 
 ---
 
-一款使用 **Flutter** 和 **Python** 构建的精美跨平台桌面应用程序，用于分析和可视化您的 [Namida](https://github.com/namidaco/namida) 听歌历史记录。导入备份文件，即可获得属于你的年度听歌报告。
+一款使用 **Flutter** 构建的精美跨平台桌面应用程序，用于分析和可视化您的 [Namida](https://github.com/namidaco/namida) 听歌历史记录。导入备份文件，即可获得属于你的年度听歌报告。
 
 ## 🌟 特性
 
@@ -45,9 +45,6 @@
 | 依赖 | 版本要求 | 说明 |
 |------|---------|------|
 | **Flutter SDK** | ≥ 3.8.1 | [安装指南](https://docs.flutter.dev/get-started/install) |
-| **Python** | ≥ 3.x | 需要在系统 `PATH` 中可访问 |
-| **pandas** | - | Python 数据处理库 |
-| **tinytag** | - | Python 音频元数据读取库（可选，用于本地元数据匹配） |
 
 ## 🚀 快速开始
 
@@ -62,12 +59,7 @@
    flutter pub get
    ```
 
-3. **安装 Python 依赖：**
-   ```bash
-   pip install pandas tinytag
-   ```
-
-4. **运行应用：**
+3. **运行应用：**
    ```bash
    flutter run -d windows  # 或 macOS / Linux
    ```
@@ -79,7 +71,7 @@
    - 选择**本地音乐目录**以获取更完整的音频元数据。
    - 设置 **Namida 可执行文件路径**（`namida.exe`），开启歌曲详情页一键播放功能。
 3. 点击 **选择备份文件** 按钮，选择从 Namida 导出的备份 `.zip` 文件。
-4. 等待 Python 分析引擎处理数据（通常十几秒即可完成）。
+4. 等待分析引擎处理数据（通常十几秒即可完成）。
 5. 尽情探索你的听歌报告吧！查看排行榜、播放趋势、听歌习惯，点击歌曲/歌手/专辑查看详细信息。
 6. 在歌曲详情页，点击 **▶ 播放** 按钮，即可在 Namida 或系统默认播放器中打开该歌曲。
 
@@ -104,10 +96,6 @@ namida_history_app/
 │   │   └── track_detail_resolver.dart # 懒加载歌曲详情查找与缓存
 │   └── widgets/                  # 可复用组件
 │       └── interactive_line_chart.dart # 交互式折线图
-├── scripts/                      # Python 数据分析引擎
-│   ├── run_analysis.py           # 分析入口脚本
-│   ├── extractor.py              # ZIP 备份解压
-│   └── parser.py                 # 核心数据解析与统计
 └── pubspec.yaml                  # Flutter 项目配置
 ```
 
@@ -120,9 +108,8 @@ namida_history_app/
 | **状态管理** | Provider |
 | **国际化** | intl + flutter_localizations |
 | **文件选择** | file_picker |
-| **后端引擎** | Python 3 |
-| **数据处理** | pandas |
-| **音频元数据** | tinytag |
+| **ZIP 处理** | archive (Dart) |
+| **音频元数据** | metadata_audio (Dart) |
 | **持久化配置** | shared_preferences |
 
 ## 🔄 数据流
@@ -130,11 +117,9 @@ namida_history_app/
 ```
 用户选择 Namida 备份 ZIP
        ↓
-Flutter 调用 Python 脚本 (scripts/run_analysis.py)
+Dart Isolate：解压 ZIP → 扫描本地音乐目录（可选）→ 解析历史 JSON → 统计分析
        ↓
-解压 ZIP → 扫描本地音乐目录（可选）→ 解析历史 JSON → 统计分析
-       ↓
-返回结构化 JSON（按年份分组：「所有时间」「2024年」…）
+返回结构化数据（按年份分组：「所有时间」「2024年」…）
        ↓
 Flutter 渲染仪表盘 → 用户浏览 & 交互
        ↓

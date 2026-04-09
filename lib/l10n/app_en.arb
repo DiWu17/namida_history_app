@@ -89,8 +89,6 @@
   ,
   "fullListSuffix": "Full List",
   "noDataAvailable": "No data available.",
-  "pythonPathHint": "Specify the Python interpreter path (e.g. conda env)",
-  "choosePythonExe": "Select python.exe",
   "namidaPathLabel": "Namida Player Path",
   "namidaPathHint": "Set to play songs directly in Namida",
   "chooseNamidaExe": "Select namida.exe",

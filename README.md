@@ -4,7 +4,7 @@
 
 ---
 
-A beautiful, cross-platform desktop application built with **Flutter** and **Python** to analyze and visualize your listening history from [Namida](https://github.com/namidaco/namida). Import your backup file and get your personal annual listening report.
+A beautiful, cross-platform desktop application built with **Flutter** to analyze and visualize your listening history from [Namida](https://github.com/namidaco/namida). Import your backup file and get your personal annual listening report.
 
 ## 🌟 Features
 
@@ -45,9 +45,6 @@ A beautiful, cross-platform desktop application built with **Flutter** and **Pyt
 | Dependency | Version | Notes |
 |------------|---------|-------|
 | **Flutter SDK** | ≥ 3.8.1 | [Installation Guide](https://docs.flutter.dev/get-started/install) |
-| **Python** | ≥ 3.x | Must be accessible from system `PATH` |
-| **pandas** | - | Python data processing library |
-| **tinytag** | - | Python audio metadata library (optional, for local metadata matching) |
 
 ## 🚀 Getting Started
 
@@ -62,12 +59,7 @@ A beautiful, cross-platform desktop application built with **Flutter** and **Pyt
    flutter pub get
    ```
 
-3. **Install Python dependencies:**
-   ```bash
-   pip install pandas tinytag
-   ```
-
-4. **Run the app:**
+3. **Run the app:**
    ```bash
    flutter run -d windows  # Or macOS / Linux
    ```
@@ -79,7 +71,7 @@ A beautiful, cross-platform desktop application built with **Flutter** and **Pyt
    - Select your **local music directory** for richer audio metadata.
    - Set the **Namida executable path** (`namida.exe`) to enable one-click playback from track detail pages.
 3. Click the **Select Backup ZIP** button and choose your exported Namida backup file (`.zip`).
-4. Wait for the Python analysis engine to process the data (usually takes a few seconds).
+4. Wait for the analysis engine to process the data (usually takes a few seconds).
 5. Explore your personal listening report! Check out leaderboards, play trends, listening habits, and tap on any track/artist/album for detailed insights.
 6. On a track detail page, click the **▶ Play** button to open the song in Namida or your system default player.
 
@@ -104,10 +96,6 @@ namida_history_app/
 │   │   └── track_detail_resolver.dart # Lazy track detail lookup & cache
 │   └── widgets/                  # Reusable components
 │       └── interactive_line_chart.dart # Interactive line chart
-├── scripts/                      # Python data analysis engine
-│   ├── run_analysis.py           # Analysis entry point
-│   ├── extractor.py              # ZIP backup extraction
-│   └── parser.py                 # Core data parsing & statistics
 └── pubspec.yaml                  # Flutter project configuration
 ```
 
@@ -120,9 +108,8 @@ namida_history_app/
 | **State Management** | Provider |
 | **Localization** | intl + flutter_localizations |
 | **File Selection** | file_picker |
-| **Backend Engine** | Python 3 |
-| **Data Processing** | pandas |
-| **Audio Metadata** | tinytag |
+| **ZIP Processing** | archive (Dart) |
+| **Audio Metadata** | metadata_audio (Dart) |
 | **Persistent Config** | shared_preferences |
 
 ## 🔄 Data Flow
@@ -130,11 +117,9 @@ namida_history_app/
 ```
 User selects Namida backup ZIP
        ↓
-Flutter invokes Python script (scripts/run_analysis.py)
+Dart Isolate: Extract ZIP → Scan local music directory (optional) → Parse history JSON → Analyze
        ↓
-Extract ZIP → Scan local music directory (optional) → Parse history JSON → Analyze
-       ↓
-Return structured JSON (grouped by year: "All Time", "2024", …)
+Return structured data (grouped by year: "All Time", "2024", …)
        ↓
 Flutter renders dashboard → User browses & interacts
        ↓
