@@ -159,13 +159,19 @@ class AppLocalizationsZh extends AppLocalizations {
   String get albumsUnit => '张';
 
   @override
-  String get annualTopTracks => '年度最爱单曲 Top 10';
+  String annualTopTracks(int count) {
+    return '年度最爱单曲 Top $count';
+  }
 
   @override
-  String get annualTopArtists => '年度最爱歌手 Top 10';
+  String annualTopArtists(int count) {
+    return '年度最爱歌手 Top $count';
+  }
 
   @override
-  String get annualTopAlbums => '年度最爱专辑 Top 10';
+  String annualTopAlbums(int count) {
+    return '年度最爱专辑 Top $count';
+  }
 
   @override
   String get highlightRepeatTitle => '执念时刻：单曲循环之最';
@@ -231,10 +237,14 @@ class AppLocalizationsZh extends AppLocalizations {
   String get weeklyPatternTitle => '一周规律';
 
   @override
-  String get artistTopSongsTitle => '歌手热歌 Top 10';
+  String artistTopSongsTitle(int count) {
+    return '歌手热歌 Top $count';
+  }
 
   @override
-  String get albumTopSongsTitle => '专辑热歌 Top 10';
+  String albumTopSongsTitle(int count) {
+    return '专辑热歌 Top $count';
+  }
 
   @override
   String get noItemDetails => '暂无该项目详细信息';
@@ -280,4 +290,46 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get launchFailed => '启动失败';
+
+  @override
+  String get settingsCoreNumbers => '核心数字显示与排序';
+
+  @override
+  String get settingsTopTracksCount => '年度最爱单曲 Top N';
+
+  @override
+  String get settingsTopArtistsCount => '年度最爱歌手 Top N';
+
+  @override
+  String get settingsTopAlbumsCount => '年度最爱专辑 Top N';
+
+  @override
+  String get settingsMonthlyPreviewCount => '每月主打歌预览数量';
+
+  @override
+  String get settingsMonthFormat => '月份显示格式';
+
+  @override
+  String get monthFormatNumeric => '数字 (1, 2, 3...)';
+
+  @override
+  String get monthFormatEnglish => '英文 (Jan. Feb. Mar...)';
+
+  @override
+  String get settingsDisplaySection => '显示设置';
+
+  @override
+  String get settingsPathSection => '路径设置';
+
+  @override
+  String get settingsGeneralSection => '通用设置';
+
+  @override
+  String get dragToReorder => '长按拖动排序，点击切换显示/隐藏';
+
+  @override
+  String get visible => '显示';
+
+  @override
+  String get hidden => '隐藏';
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
 import '../services/track_detail_resolver.dart';
+import '../widgets/top_list_section.dart';
 import 'track_detail_screen.dart';
 
 class MonthlyTopSongFullScreen extends StatelessWidget {
@@ -36,6 +37,7 @@ class MonthlyTopSongFullScreen extends StatelessWidget {
         itemBuilder: (context, index) {
           final key = sortedKeys[index];
           final monthStr = key.toString().substring(5);
+          final displayMonth = formatMonthStr(monthStr);
           final trackName = data[key].toString();
           return ListTile(
             onTap: () {
@@ -56,10 +58,10 @@ class MonthlyTopSongFullScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Text(
-                monthStr,
+                displayMonth,
                 style: TextStyle(
                   color: Theme.of(context).colorScheme.onPrimaryContainer,
-                  fontSize: 16,
+                  fontSize: displayMonth.length > 2 ? 12 : 16,
                   fontWeight: FontWeight.bold,
                 ),
               ),

@@ -401,20 +401,20 @@ abstract class AppLocalizations {
   /// No description provided for @annualTopTracks.
   ///
   /// In en, this message translates to:
-  /// **'Annual Favorite Tracks Top 10'**
-  String get annualTopTracks;
+  /// **'Annual Favorite Tracks Top {count}'**
+  String annualTopTracks(int count);
 
   /// No description provided for @annualTopArtists.
   ///
   /// In en, this message translates to:
-  /// **'Annual Favorite Artists Top 10'**
-  String get annualTopArtists;
+  /// **'Annual Favorite Artists Top {count}'**
+  String annualTopArtists(int count);
 
   /// No description provided for @annualTopAlbums.
   ///
   /// In en, this message translates to:
-  /// **'Annual Favorite Albums Top 10'**
-  String get annualTopAlbums;
+  /// **'Annual Favorite Albums Top {count}'**
+  String annualTopAlbums(int count);
 
   /// No description provided for @highlightRepeatTitle.
   ///
@@ -533,14 +533,14 @@ abstract class AppLocalizations {
   /// No description provided for @artistTopSongsTitle.
   ///
   /// In en, this message translates to:
-  /// **'Artist Top Songs Top 10'**
-  String get artistTopSongsTitle;
+  /// **'Artist Top Songs Top {count}'**
+  String artistTopSongsTitle(int count);
 
   /// No description provided for @albumTopSongsTitle.
   ///
   /// In en, this message translates to:
-  /// **'Album Top Songs Top 10'**
-  String get albumTopSongsTitle;
+  /// **'Album Top Songs Top {count}'**
+  String albumTopSongsTitle(int count);
 
   /// No description provided for @noItemDetails.
   ///
@@ -631,6 +631,90 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Launch failed'**
   String get launchFailed;
+
+  /// No description provided for @settingsCoreNumbers.
+  ///
+  /// In en, this message translates to:
+  /// **'Core Numbers Display & Order'**
+  String get settingsCoreNumbers;
+
+  /// No description provided for @settingsTopTracksCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Annual Top Tracks Count'**
+  String get settingsTopTracksCount;
+
+  /// No description provided for @settingsTopArtistsCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Annual Top Artists Count'**
+  String get settingsTopArtistsCount;
+
+  /// No description provided for @settingsTopAlbumsCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Annual Top Albums Count'**
+  String get settingsTopAlbumsCount;
+
+  /// No description provided for @settingsMonthlyPreviewCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Monthly Top Song Preview Count'**
+  String get settingsMonthlyPreviewCount;
+
+  /// No description provided for @settingsMonthFormat.
+  ///
+  /// In en, this message translates to:
+  /// **'Month Display Format'**
+  String get settingsMonthFormat;
+
+  /// No description provided for @monthFormatNumeric.
+  ///
+  /// In en, this message translates to:
+  /// **'Numeric (1, 2, 3...)'**
+  String get monthFormatNumeric;
+
+  /// No description provided for @monthFormatEnglish.
+  ///
+  /// In en, this message translates to:
+  /// **'English (Jan. Feb. Mar...)'**
+  String get monthFormatEnglish;
+
+  /// No description provided for @settingsDisplaySection.
+  ///
+  /// In en, this message translates to:
+  /// **'Display Settings'**
+  String get settingsDisplaySection;
+
+  /// No description provided for @settingsPathSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Path Settings'**
+  String get settingsPathSection;
+
+  /// No description provided for @settingsGeneralSection.
+  ///
+  /// In en, this message translates to:
+  /// **'General Settings'**
+  String get settingsGeneralSection;
+
+  /// No description provided for @dragToReorder.
+  ///
+  /// In en, this message translates to:
+  /// **'Long press to drag and reorder, tap to toggle visibility'**
+  String get dragToReorder;
+
+  /// No description provided for @visible.
+  ///
+  /// In en, this message translates to:
+  /// **'Visible'**
+  String get visible;
+
+  /// No description provided for @hidden.
+  ///
+  /// In en, this message translates to:
+  /// **'Hidden'**
+  String get hidden;
 }
 
 class _AppLocalizationsDelegate

@@ -14,7 +14,7 @@ import '../widgets/highlight_card.dart';
 import '../widgets/time_charts.dart';
 import '../widgets/top_list_section.dart';
 import '../widgets/welcome_placeholder.dart';
-import '../widgets/settings_dialog.dart';
+import 'settings_screen.dart';
 
 class AnalyzerHome extends StatefulWidget {
   const AnalyzerHome({super.key});
@@ -47,13 +47,20 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
   }
 
   void _showSettingsDialog() {
-    showSettingsDialog(
-      context: context,
-      musicDirectory: _musicDirectory,
-      namidaPath: _namidaPath,
-      onMusicDirectoryChanged: (val) => setState(() => _musicDirectory = val),
-      onNamidaPathChanged: (val) => setState(() => _namidaPath = val),
-    );
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (ctx) => SettingsScreen(
+          musicDirectory: _musicDirectory,
+          namidaPath: _namidaPath,
+          onMusicDirectoryChanged: (val) => setState(() => _musicDirectory = val),
+          onNamidaPathChanged: (val) => setState(() => _namidaPath = val),
+        ),
+      ),
+    ).then((_) {
+      // Refresh after returning from settings
+      if (mounted) setState(() {});
+    });
   }
 
   String _normalizeNewlines(String s) {
@@ -247,6 +254,15 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
   }
 
   List<Widget> _buildDashboardSlivers(Map<String, dynamic> summary) {
+    final l10n = AppLocalizations.of(context)!;
+    final cfg = ConfigService();
+    final topTracksCount = cfg.getInt('top_tracks_count', 10);
+    final topArtistsCount = cfg.getInt('top_artists_count', 10);
+    final topAlbumsCount = cfg.getInt('top_albums_count', 10);
+    final monthlyPreviewCount = cfg.getInt('monthly_preview_count', 10);
+    final coreItems = loadCoreNumbersConfig();
+    final visibleCoreItems = coreItems.where((e) => e.value).toList();
+
     return [
       SliverPadding(
         padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
@@ -254,7 +270,7 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _buildSectionTitle(AppLocalizations.of(context)!.sectionCoreNumbers),
+              _buildSectionTitle(l10n.sectionCoreNumbers),
               LayoutBuilder(
                 builder: (context, constraints) {
                   int crossAxisCount = 2;
@@ -272,16 +288,7 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     childAspectRatio: crossAxisCount == 4 ? 1.4 : (crossAxisCount == 3 ? 1.25 : 1.15),
-                    children: [
-                       StatCard(title: AppLocalizations.of(context)!.statTotalListening, value: '${summary['total_hours'] ?? '0'} ${AppLocalizations.of(context)!.hoursUnit}', icon: Icons.timer_rounded, color: Colors.blue),
-                       StatCard(title: AppLocalizations.of(context)!.statListeningCompanion, value: '${summary['total_days'] ?? '0'} ${AppLocalizations.of(context)!.daysUnit}', icon: Icons.calendar_month_rounded, color: Colors.teal),
-                       StatCard(title: AppLocalizations.of(context)!.statAvgDaily, value: '${summary['avg_daily_minutes'] ?? '0'} ${AppLocalizations.of(context)!.minutesUnit}', icon: Icons.hourglass_bottom_rounded, color: Colors.cyan),
-                       StatCard(title: AppLocalizations.of(context)!.statTotalPlays, value: '${summary['total_plays'] ?? '0'} ${AppLocalizations.of(context)!.playsSuffix}', icon: Icons.play_circle_fill_rounded, color: Colors.green),
-                       StatCard(title: AppLocalizations.of(context)!.statUniqueTracks, value: '${summary['unique_tracks'] ?? '0'} ${AppLocalizations.of(context)!.tracksUnit}', icon: Icons.library_music_rounded, color: Colors.orange),
-                       StatCard(title: AppLocalizations.of(context)!.statUniqueArtists, value: '${summary['unique_artists'] ?? '0'} ${AppLocalizations.of(context)!.artistsUnit}', icon: Icons.mic_rounded, color: Colors.purple),
-                       StatCard(title: AppLocalizations.of(context)!.statUniqueAlbums, value: '${summary['unique_albums'] ?? '0'} ${AppLocalizations.of(context)!.albumsUnit}', icon: Icons.album_rounded, color: Colors.deepOrange),
-                       StatCard(title: AppLocalizations.of(context)!.statFavoriteGenre, value: '${summary['favorite_genre'] ?? AppLocalizations.of(context)!.unknownLabel}', icon: Icons.category_rounded, color: Colors.pink),
-                    ]
+                    children: visibleCoreItems.map((item) => _buildStatCard(item.key, summary, l10n)).toList(),
                   );
                 },
               ),
@@ -295,15 +302,15 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _buildSectionTitle(AppLocalizations.of(context)!.sectionTopLists),
+              _buildSectionTitle(l10n.sectionTopLists),
               if (summary['most_played'] != null && (summary['most_played'] as Map).isNotEmpty)
-                TopListSection(title: AppLocalizations.of(context)!.annualTopTracks, data: summary['most_played'], icon: Icons.music_note, iconColor: Colors.blue, type: 'track', detailsMap: summary['track_details'], trackDetailsMap: summary['track_details'], allTrackCompact: summary['all_track_compact']),
+                TopListSection(title: l10n.annualTopTracks(topTracksCount), data: summary['most_played'], icon: Icons.music_note, iconColor: Colors.blue, type: 'track', detailsMap: summary['track_details'], trackDetailsMap: summary['track_details'], allTrackCompact: summary['all_track_compact'], maxItems: topTracksCount),
               if (summary['top_artists'] != null && (summary['top_artists'] as Map).isNotEmpty)
-                TopListSection(title: AppLocalizations.of(context)!.annualTopArtists, data: summary['top_artists'], icon: Icons.person, iconColor: Colors.purple, type: 'artist', detailsMap: summary['artist_details'], trackDetailsMap: summary['track_details'], allTrackCompact: summary['all_track_compact']),
+                TopListSection(title: l10n.annualTopArtists(topArtistsCount), data: summary['top_artists'], icon: Icons.person, iconColor: Colors.purple, type: 'artist', detailsMap: summary['artist_details'], trackDetailsMap: summary['track_details'], allTrackCompact: summary['all_track_compact'], maxItems: topArtistsCount),
               if (summary['top_albums'] != null && (summary['top_albums'] as Map).isNotEmpty)
-                TopListSection(title: AppLocalizations.of(context)!.annualTopAlbums, data: summary['top_albums'], icon: Icons.album, iconColor: Colors.deepOrange, type: 'album', detailsMap: summary['album_details'], trackDetailsMap: summary['track_details'], allTrackCompact: summary['all_track_compact']),
+                TopListSection(title: l10n.annualTopAlbums(topAlbumsCount), data: summary['top_albums'], icon: Icons.album, iconColor: Colors.deepOrange, type: 'album', detailsMap: summary['album_details'], trackDetailsMap: summary['track_details'], allTrackCompact: summary['all_track_compact'], maxItems: topAlbumsCount),
               if (summary['monthly_top_song'] != null && (summary['monthly_top_song'] as Map).isNotEmpty)
-                MonthlyTopSongPreview(data: summary['monthly_top_song'], trackDetails: summary['track_details'], allTrackCompact: summary['all_track_compact']),
+                MonthlyTopSongPreview(data: summary['monthly_top_song'], trackDetails: summary['track_details'], allTrackCompact: summary['all_track_compact'], maxPreview: monthlyPreviewCount),
             ],
           ),
         ),
@@ -314,7 +321,7 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _buildSectionTitle(AppLocalizations.of(context)!.sectionTimeDimension),
+              _buildSectionTitle(l10n.sectionTimeDimension),
               if (summary['listening_periods'] != null)
                  PeriodsCard(periods: summary['listening_periods']),
               const SizedBox(height: 16),
@@ -330,11 +337,11 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _buildSectionTitle(AppLocalizations.of(context)!.sectionHighlights),
+              _buildSectionTitle(l10n.sectionHighlights),
               if (summary['single_day_repeat_max'] != null && summary['single_day_repeat_max']['count'] > 0)
                 HighlightCard(
-                  title: AppLocalizations.of(context)!.highlightRepeatTitle,
-                  subtitle: _normalizeNewlines(AppLocalizations.of(context)!.highlightRepeatBody(
+                  title: l10n.highlightRepeatTitle,
+                  subtitle: _normalizeNewlines(l10n.highlightRepeatBody(
                     summary['single_day_repeat_max']['count'].toString(),
                     summary['single_day_repeat_max']['date'].toString(),
                     summary['single_day_repeat_max']['track'].toString(),
@@ -348,8 +355,8 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
               const SizedBox(height: 16),
               if (summary['latest_night_song'] != null && summary['latest_night_song']['time'] != "")
                 HighlightCard(
-                  title: AppLocalizations.of(context)!.latestNightTitle,
-                  subtitle: _normalizeNewlines(AppLocalizations.of(context)!.latestNightBody(
+                  title: l10n.latestNightTitle,
+                  subtitle: _normalizeNewlines(l10n.latestNightBody(
                     summary['latest_night_song']['time'].toString(),
                     summary['latest_night_song']['track'].toString(),
                   )),
@@ -362,8 +369,8 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
               const SizedBox(height: 16),
               if (summary['most_immersive_day'] != null && summary['most_immersive_day']['count'] > 0)
                 HighlightCard(
-                  title: AppLocalizations.of(context)!.mostImmersiveTitle,
-                  subtitle: _normalizeNewlines(AppLocalizations.of(context)!.mostImmersiveBody(
+                  title: l10n.mostImmersiveTitle,
+                  subtitle: _normalizeNewlines(l10n.mostImmersiveBody(
                     summary['most_immersive_day']['count'].toString(),
                     summary['most_immersive_day']['date'].toString(),
                   )),
@@ -380,7 +387,7 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _buildSectionTitle(AppLocalizations.of(context)!.sectionPlayHistoryTrend),
+              _buildSectionTitle(l10n.sectionPlayHistoryTrend),
               Container(
                 height: 300,
                 padding: const EdgeInsets.all(24.0),
@@ -398,4 +405,26 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
     ];
   }
 
+  StatCard _buildStatCard(String key, Map<String, dynamic> summary, AppLocalizations l10n) {
+    switch (key) {
+      case 'total_hours':
+        return StatCard(title: l10n.statTotalListening, value: '${summary['total_hours'] ?? '0'} ${l10n.hoursUnit}', icon: Icons.timer_rounded, color: Colors.blue);
+      case 'total_days':
+        return StatCard(title: l10n.statListeningCompanion, value: '${summary['total_days'] ?? '0'} ${l10n.daysUnit}', icon: Icons.calendar_month_rounded, color: Colors.teal);
+      case 'avg_daily_minutes':
+        return StatCard(title: l10n.statAvgDaily, value: '${summary['avg_daily_minutes'] ?? '0'} ${l10n.minutesUnit}', icon: Icons.hourglass_bottom_rounded, color: Colors.cyan);
+      case 'total_plays':
+        return StatCard(title: l10n.statTotalPlays, value: '${summary['total_plays'] ?? '0'} ${l10n.playsSuffix}', icon: Icons.play_circle_fill_rounded, color: Colors.green);
+      case 'unique_tracks':
+        return StatCard(title: l10n.statUniqueTracks, value: '${summary['unique_tracks'] ?? '0'} ${l10n.tracksUnit}', icon: Icons.library_music_rounded, color: Colors.orange);
+      case 'unique_artists':
+        return StatCard(title: l10n.statUniqueArtists, value: '${summary['unique_artists'] ?? '0'} ${l10n.artistsUnit}', icon: Icons.mic_rounded, color: Colors.purple);
+      case 'unique_albums':
+        return StatCard(title: l10n.statUniqueAlbums, value: '${summary['unique_albums'] ?? '0'} ${l10n.albumsUnit}', icon: Icons.album_rounded, color: Colors.deepOrange);
+      case 'favorite_genre':
+        return StatCard(title: l10n.statFavoriteGenre, value: '${summary['favorite_genre'] ?? l10n.unknownLabel}', icon: Icons.category_rounded, color: Colors.pink);
+      default:
+        return StatCard(title: key, value: '?', icon: Icons.help_outline, color: Colors.grey);
+    }
+  }
 }

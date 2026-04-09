@@ -44,6 +44,12 @@ class ConfigService {
 
   String? get(String key) => _config[key];
 
+  int getInt(String key, int defaultValue) {
+    final val = _config[key];
+    if (val == null) return defaultValue;
+    return int.tryParse(val) ?? defaultValue;
+  }
+
   Future<void> set(String key, String value) async {
     _config[key] = value;
     await _save();

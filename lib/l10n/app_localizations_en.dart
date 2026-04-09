@@ -161,13 +161,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get albumsUnit => 'albums';
 
   @override
-  String get annualTopTracks => 'Annual Favorite Tracks Top 10';
+  String annualTopTracks(int count) {
+    return 'Annual Favorite Tracks Top $count';
+  }
 
   @override
-  String get annualTopArtists => 'Annual Favorite Artists Top 10';
+  String annualTopArtists(int count) {
+    return 'Annual Favorite Artists Top $count';
+  }
 
   @override
-  String get annualTopAlbums => 'Annual Favorite Albums Top 10';
+  String annualTopAlbums(int count) {
+    return 'Annual Favorite Albums Top $count';
+  }
 
   @override
   String get highlightRepeatTitle => 'Obsessive Moment: Most Repeats';
@@ -233,10 +239,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get weeklyPatternTitle => 'Weekly Pattern';
 
   @override
-  String get artistTopSongsTitle => 'Artist Top Songs Top 10';
+  String artistTopSongsTitle(int count) {
+    return 'Artist Top Songs Top $count';
+  }
 
   @override
-  String get albumTopSongsTitle => 'Album Top Songs Top 10';
+  String albumTopSongsTitle(int count) {
+    return 'Album Top Songs Top $count';
+  }
 
   @override
   String get noItemDetails => 'No details available for this item';
@@ -284,4 +294,47 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get launchFailed => 'Launch failed';
+
+  @override
+  String get settingsCoreNumbers => 'Core Numbers Display & Order';
+
+  @override
+  String get settingsTopTracksCount => 'Annual Top Tracks Count';
+
+  @override
+  String get settingsTopArtistsCount => 'Annual Top Artists Count';
+
+  @override
+  String get settingsTopAlbumsCount => 'Annual Top Albums Count';
+
+  @override
+  String get settingsMonthlyPreviewCount => 'Monthly Top Song Preview Count';
+
+  @override
+  String get settingsMonthFormat => 'Month Display Format';
+
+  @override
+  String get monthFormatNumeric => 'Numeric (1, 2, 3...)';
+
+  @override
+  String get monthFormatEnglish => 'English (Jan. Feb. Mar...)';
+
+  @override
+  String get settingsDisplaySection => 'Display Settings';
+
+  @override
+  String get settingsPathSection => 'Path Settings';
+
+  @override
+  String get settingsGeneralSection => 'General Settings';
+
+  @override
+  String get dragToReorder =>
+      'Long press to drag and reorder, tap to toggle visibility';
+
+  @override
+  String get visible => 'Visible';
+
+  @override
+  String get hidden => 'Hidden';
 }

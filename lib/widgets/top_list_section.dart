@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
+import '../services/config_service.dart';
 import '../services/track_detail_resolver.dart';
 import 'cover_thumbnail.dart';
 import 'rank_utils.dart';
@@ -18,6 +19,7 @@ class TopListSection extends StatelessWidget {
   final Map<dynamic, dynamic>? detailsMap;
   final Map<dynamic, dynamic>? trackDetailsMap;
   final Map<dynamic, dynamic>? allTrackCompact;
+  final int maxItems;
 
   const TopListSection({
     super.key,
@@ -29,6 +31,7 @@ class TopListSection extends StatelessWidget {
     this.detailsMap,
     this.trackDetailsMap,
     this.allTrackCompact,
+    this.maxItems = 10,
   });
 
   @override
@@ -42,14 +45,14 @@ class TopListSection extends StatelessWidget {
             Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             TextButton(
               onPressed: () {
-                Navigator.push(context, MaterialPageRoute(builder: (ctx) => FullListScreen(title: title.replaceAll(' Top 10', ''), data: data, icon: icon, type: type, detailsMap: detailsMap, trackDetailsMap: trackDetailsMap, allTrackCompact: allTrackCompact)));
+                Navigator.push(context, MaterialPageRoute(builder: (ctx) => FullListScreen(title: title.replaceAll(RegExp(r' Top \d+'), ''), data: data, icon: icon, type: type, detailsMap: detailsMap, trackDetailsMap: trackDetailsMap, allTrackCompact: allTrackCompact)));
               },
               child: Text(AppLocalizations.of(context)!.viewFullList, style: const TextStyle(fontWeight: FontWeight.bold)),
             ),
           ],
         ),
         const SizedBox(height: 12),
-        TopList(data: data, icon: icon, type: type, detailsMap: detailsMap, trackDetailsMap: trackDetailsMap, allTrackCompact: allTrackCompact),
+        TopList(data: data, icon: icon, type: type, detailsMap: detailsMap, trackDetailsMap: trackDetailsMap, allTrackCompact: allTrackCompact, maxItems: maxItems),
         const SizedBox(height: 24),
       ],
     );
@@ -172,22 +175,36 @@ class TopList extends StatelessWidget {
   }
 }
 
+const List<String> _kMonthAbbr = ['', 'Jan.', 'Feb.', 'Mar.', 'Apr.', 'May.', 'Jun.', 'Jul.', 'Aug.', 'Sep.', 'Oct.', 'Nov.', 'Dec.'];
+
+String formatMonthStr(String monthStr) {
+  final monthFormat = ConfigService().get('month_format') ?? 'numeric';
+  if (monthFormat == 'english') {
+    final m = int.tryParse(monthStr);
+    if (m != null && m >= 1 && m <= 12) {
+      return _kMonthAbbr[m];
+    }
+  }
+  return monthStr;
+}
+
 class MonthlyTopSongPreview extends StatelessWidget {
   final Map<dynamic, dynamic> data;
   final Map<dynamic, dynamic>? trackDetails;
   final Map<dynamic, dynamic>? allTrackCompact;
+  final int maxPreview;
 
   const MonthlyTopSongPreview({
     super.key,
     required this.data,
     this.trackDetails,
     this.allTrackCompact,
+    this.maxPreview = 10,
   });
 
   @override
   Widget build(BuildContext context) {
     final sortedKeys = data.keys.toList()..sort();
-    const int maxPreview = 12;
     final bool needsTruncation = sortedKeys.length > maxPreview;
     final displayKeys = needsTruncation ? sortedKeys.sublist(sortedKeys.length - maxPreview) : sortedKeys;
 
@@ -225,6 +242,7 @@ class MonthlyTopSongPreview extends StatelessWidget {
             itemBuilder: (context, index) {
               final key = displayKeys[index];
               final monthStr = key.toString().substring(5);
+              final displayMonth = formatMonthStr(monthStr);
               final trackName = data[key].toString();
               return ListTile(
                 onTap: () {
@@ -245,10 +263,10 @@ class MonthlyTopSongPreview extends StatelessWidget {
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Text(
-                    monthStr,
+                    displayMonth,
                     style: TextStyle(
                       color: Theme.of(context).colorScheme.onPrimaryContainer,
-                      fontSize: 16,
+                      fontSize: displayMonth.length > 2 ? 12 : 16,
                       fontWeight: FontWeight.bold,
                     ),
                   ),

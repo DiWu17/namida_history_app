@@ -27,7 +27,7 @@ class ArtistDetailScreen extends StatelessWidget {
       extraSections: [
         if (details['top_songs'] != null && (details['top_songs'] as Map).isNotEmpty)
           TopSongsList(
-            sectionTitle: AppLocalizations.of(context)!.artistTopSongsTitle,
+            sectionTitle: AppLocalizations.of(context)!.artistTopSongsTitle(10),
             topSongs: details['top_songs'] as Map,
             trackDetails: trackDetails,
             allTrackCompact: allTrackCompact,
