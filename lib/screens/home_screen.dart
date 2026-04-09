@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../l10n/app_localizations.dart';
 
 import '../services/analysis_service.dart';
@@ -82,6 +83,22 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
             .map((f) => f.path!)
             .toList();
         if (validPaths.isEmpty) return;
+
+          // Request storage permission on Android when music directory is set
+          if (!kIsWeb && Platform.isAndroid && _musicDirectory != null) {
+            PermissionStatus status;
+            // Android 13+ uses granular media permissions
+            if (await Permission.audio.status.isDenied) {
+              status = await Permission.audio.request();
+            } else {
+              status = await Permission.storage.request();
+            }
+            if (!status.isGranted && mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(l10n.permissionDenied)),
+              );
+            }
+          }
 
           setState(() {
           _isLoading = true;

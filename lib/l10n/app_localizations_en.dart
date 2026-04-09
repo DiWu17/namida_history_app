@@ -322,6 +322,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get launchFailed => 'Launch failed';
 
   @override
+  String get permissionDenied =>
+      'Storage permission denied, unable to read music files';
+
+  @override
   String get settingsCoreNumbers => 'Core Numbers Display & Order';
 
   @override

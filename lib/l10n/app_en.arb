@@ -115,6 +115,7 @@
   "fileNotFound": "Local music file not found",
   "needMusicDir": "Please configure music folder path in settings first",
   "launchFailed": "Launch failed",
+  "permissionDenied": "Storage permission denied, unable to read music files",
   "settingsCoreNumbers": "Core Numbers Display & Order",
   "settingsTopTracksCount": "Annual Top Tracks Count",
   "settingsTopArtistsCount": "Annual Top Artists Count",

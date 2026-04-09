@@ -680,6 +680,12 @@ abstract class AppLocalizations {
   /// **'Launch failed'**
   String get launchFailed;
 
+  /// No description provided for @permissionDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'Storage permission denied, unable to read music files'**
+  String get permissionDenied;
+
   /// No description provided for @settingsCoreNumbers.
   ///
   /// In en, this message translates to:

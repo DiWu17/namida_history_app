@@ -318,6 +318,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get launchFailed => '启动失败';
 
   @override
+  String get permissionDenied => '存储权限被拒绝，无法读取音乐文件';
+
+  @override
   String get settingsCoreNumbers => '核心数字显示与排序';
 
   @override

@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:android_intent_plus/android_intent.dart';
 import '../l10n/app_localizations.dart';
 import '../services/config_service.dart';
 import '../widgets/detail_screen_template.dart';
@@ -19,11 +20,26 @@ class TrackDetailScreen extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
 
     if (!kIsWeb && Platform.isAndroid) {
+      final localPath = details['localPath']?.toString() ?? '';
       try {
-        await Process.run('am', [
-          'start',
-          '-n', 'com.msob7y.namida/.MainActivity',
-        ]);
+        if (localPath.isNotEmpty) {
+          // Play the specific file in Namida or default player
+          final intent = AndroidIntent(
+            action: 'action_view',
+            data: Uri.file(localPath).toString(),
+            type: 'audio/*',
+            package: 'com.msob7y.namida',
+          );
+          await intent.launch();
+        } else {
+          // Just open Namida
+          final intent = AndroidIntent(
+            action: 'action_main',
+            package: 'com.msob7y.namida',
+            componentName: 'com.msob7y.namida.MainActivity',
+          );
+          await intent.launch();
+        }
       } catch (e) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

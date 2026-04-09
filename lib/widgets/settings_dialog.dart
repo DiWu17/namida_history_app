@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:android_intent_plus/android_intent.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/locale_provider.dart';
 import '../services/config_service.dart';
@@ -73,10 +74,12 @@ void showSettingsDialog({
                     OutlinedButton.icon(
                       onPressed: () async {
                         try {
-                          await Process.run('am', [
-                            'start',
-                            '-n', 'com.msob7y.namida/.MainActivity',
-                          ]);
+                          final intent = AndroidIntent(
+                            action: 'action_main',
+                            package: 'com.msob7y.namida',
+                            componentName: 'com.msob7y.namida.MainActivity',
+                          );
+                          await intent.launch();
                         } catch (e) {
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
