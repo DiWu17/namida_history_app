@@ -26,6 +26,11 @@ class _InteractiveLineChartState extends State<InteractiveLineChart> {
   double _maxX = 10;
   int _totalPoints = 0;
 
+  // For pinch-to-zoom gesture tracking
+  double _scaleStartMinX = 0;
+  double _scaleStartMaxX = 0;
+  Offset _scaleStartFocalPoint = Offset.zero;
+
   @override
   void initState() {
     super.initState();
@@ -115,34 +120,75 @@ class _InteractiveLineChartState extends State<InteractiveLineChart> {
     }
   }
 
-  void _handlePanUpdate(DragUpdateDetails details) {
+  void _handleScaleStart(ScaleStartDetails details) {
+    _scaleStartMinX = _minX;
+    _scaleStartMaxX = _maxX;
+    _scaleStartFocalPoint = details.localFocalPoint;
+  }
+
+  void _handleScaleUpdate(ScaleUpdateDetails details) {
     if (_totalPoints == 0) return;
-    
+
     final RenderBox renderBox = context.findRenderObject() as RenderBox;
     final chartWidth = renderBox.size.width - 45;
     if (chartWidth <= 0) return;
 
-    final currentSpan = _maxX - _minX;
-    final deltaXUnits = -(details.delta.dx / chartWidth) * currentSpan;
+    final startSpan = _scaleStartMaxX - _scaleStartMinX;
 
-    double newMinX = _minX + deltaXUnits;
-    double newMaxX = _maxX + deltaXUnits;
+    if (details.scale == 1.0) {
+      // Single finger drag → pan
+      final deltaDx = details.localFocalPoint.dx - _scaleStartFocalPoint.dx;
+      final deltaXUnits = -(deltaDx / chartWidth) * startSpan;
 
-    if (newMinX < 0) {
-      newMinX = 0;
-      newMaxX = newMinX + currentSpan;
-      if (newMaxX > _totalPoints - 1) newMaxX = (_totalPoints - 1).toDouble();
+      double newMinX = _scaleStartMinX + deltaXUnits;
+      double newMaxX = _scaleStartMaxX + deltaXUnits;
+
+      if (newMinX < 0) {
+        newMinX = 0;
+        newMaxX = newMinX + startSpan;
+      }
+      if (newMaxX > _totalPoints - 1) {
+        newMaxX = (_totalPoints - 1).toDouble();
+        newMinX = newMaxX - startSpan;
+        if (newMinX < 0) newMinX = 0;
+      }
+
+      setState(() {
+        _minX = newMinX;
+        _maxX = newMaxX;
+      });
+    } else {
+      // Pinch → zoom
+      double newSpan = startSpan / details.scale;
+      if (newSpan < 4) newSpan = 4;
+      final maxSpan = (_totalPoints - 1).toDouble();
+      if (newSpan > maxSpan) newSpan = maxSpan;
+
+      // Zoom around the focal point
+      double localDx = details.localFocalPoint.dx - 45;
+      if (localDx < 0) localDx = 0;
+      if (localDx > chartWidth) localDx = chartWidth;
+      final fraction = (localDx / chartWidth).clamp(0.0, 1.0);
+      final focalX = _scaleStartMinX + fraction * startSpan;
+
+      double newMinX = focalX - fraction * newSpan;
+      double newMaxX = focalX + (1.0 - fraction) * newSpan;
+
+      if (newMinX < 0) {
+        newMinX = 0;
+        newMaxX = newMinX + newSpan;
+      }
+      if (newMaxX > _totalPoints - 1) {
+        newMaxX = (_totalPoints - 1).toDouble();
+        newMinX = newMaxX - newSpan;
+        if (newMinX < 0) newMinX = 0;
+      }
+
+      setState(() {
+        _minX = newMinX;
+        _maxX = newMaxX;
+      });
     }
-    if (newMaxX > _totalPoints - 1) {
-      newMaxX = (_totalPoints - 1).toDouble();
-      newMinX = newMaxX - currentSpan;
-      if (newMinX < 0) newMinX = 0;
-    }
-
-    setState(() {
-      _minX = newMinX;
-      _maxX = newMaxX;
-    });
   }
 
   @override
@@ -267,7 +313,7 @@ class _InteractiveLineChartState extends State<InteractiveLineChart> {
                   final date = _sortedKeys[spotIndex];
                   return LineTooltipItem(
                     '$date\n${touchedSpot.y.toInt()} ${AppLocalizations.of(context)!.playsSuffix}',
-                    const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    TextStyle(color: Theme.of(context).colorScheme.onInverseSurface, fontWeight: FontWeight.bold),
                   );
                 }).toList();
               },
@@ -284,7 +330,8 @@ class _InteractiveLineChartState extends State<InteractiveLineChart> {
     return Listener(
       onPointerSignal: _handlePointerSignal,
       child: GestureDetector(
-        onPanUpdate: _handlePanUpdate,
+        onScaleStart: _handleScaleStart,
+        onScaleUpdate: _handleScaleUpdate,
         child: chart,
       ),
     );

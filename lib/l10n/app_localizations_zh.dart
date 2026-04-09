@@ -240,6 +240,15 @@ class AppLocalizationsZh extends AppLocalizations {
   String get noItemDetails => '暂无该项目详细信息';
 
   @override
+  String get tabOverview => '概览';
+
+  @override
+  String get tabTopSongs => '热门曲目';
+
+  @override
+  String get tabTrend => '趋势';
+
+  @override
   String get fullListSuffix => '总榜';
 
   @override
@@ -250,6 +259,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get namidaPathHint => '设置后可直接在 Namida 中播放歌曲';
+
+  @override
+  String get namidaAndroidHint => '将通过 Android Intent 自动启动 Namida 应用';
 
   @override
   String get chooseNamidaExe => '选择 namida.exe';

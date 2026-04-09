@@ -242,6 +242,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noItemDetails => 'No details available for this item';
 
   @override
+  String get tabOverview => 'Overview';
+
+  @override
+  String get tabTopSongs => 'Top Songs';
+
+  @override
+  String get tabTrend => 'Trend';
+
+  @override
   String get fullListSuffix => 'Full List';
 
   @override
@@ -252,6 +261,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get namidaPathHint => 'Set to play songs directly in Namida';
+
+  @override
+  String get namidaAndroidHint =>
+      'Namida will be launched automatically via Android Intent';
 
   @override
   String get chooseNamidaExe => 'Select namida.exe';

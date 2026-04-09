@@ -1,0 +1,200 @@
+import 'dart:io';
+import 'package:flutter/material.dart';
+import '../l10n/app_localizations.dart';
+import 'app_styles.dart';
+import 'interactive_line_chart.dart';
+import 'time_row.dart';
+
+class DetailScreenTemplate extends StatelessWidget {
+  final String title;
+  final Map<dynamic, dynamic> details;
+  final IconData fallbackIcon;
+  final Color accentColor;
+  final List<Widget>? actions;
+  final Widget? floatingActionButton;
+  final List<Widget> extraSections;
+
+  const DetailScreenTemplate({
+    super.key,
+    required this.title,
+    required this.details,
+    required this.fallbackIcon,
+    required this.accentColor,
+    this.actions,
+    this.floatingActionButton,
+    this.extraSections = const [],
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final int totalPlays = details['total_plays'] ?? 0;
+    final String coverPath = details['cover']?.toString() ?? '';
+    final bool hasCover = coverPath.isNotEmpty && File(coverPath).existsSync();
+    final l10n = AppLocalizations.of(context)!;
+    final hasExtraSections = extraSections.isNotEmpty;
+
+    final tabs = <Widget>[
+      Tab(icon: const Icon(Icons.info_outline_rounded), text: l10n.tabOverview),
+      if (hasExtraSections)
+        Tab(icon: const Icon(Icons.queue_music_rounded), text: l10n.tabTopSongs),
+      Tab(icon: const Icon(Icons.trending_up_rounded), text: l10n.tabTrend),
+    ];
+
+    return DefaultTabController(
+      length: tabs.length,
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+          backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+          actions: actions,
+        ),
+        floatingActionButton: floatingActionButton,
+        body: Column(
+          children: [
+            // Compact header
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest.withAlpha(100),
+              ),
+              child: Row(
+                children: [
+                  if (hasCover)
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.file(
+                        File(coverPath),
+                        width: 72,
+                        height: 72,
+                        fit: BoxFit.cover,
+                        cacheWidth: 144,
+                        cacheHeight: 144,
+                        errorBuilder: (_, __, ___) => _buildIconBox(context),
+                      ),
+                    )
+                  else
+                    _buildIconBox(context),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (totalPlays > 0) ...[
+                          const SizedBox(height: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: accentColor.withAlpha(30),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: accentColor.withAlpha(50)),
+                            ),
+                            child: Text(
+                              '$totalPlays ${l10n.playsSuffix}',
+                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: accentColor),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // TabBar
+            Material(
+              color: Theme.of(context).colorScheme.surface,
+              child: TabBar(
+                tabs: tabs,
+                labelColor: accentColor,
+                indicatorColor: accentColor,
+                unselectedLabelColor: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            // TabBarView
+            Expanded(
+              child: TabBarView(
+                children: [
+                  // Overview tab
+                  SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(l10n.historyTitle, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 16),
+                        Card(
+                          elevation: 0,
+                          color: Theme.of(context).colorScheme.surfaceContainerHighest.withAlpha(50),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
+                              children: [
+                                TimeRow(label: l10n.firstPlayLabel, time: details['first_play']?.toString() ?? l10n.unknownLabel, icon: Icons.fiber_new_rounded, color: Colors.green),
+                                const Divider(height: 24),
+                                TimeRow(label: l10n.lastPlayLabel, time: details['last_play']?.toString() ?? l10n.unknownLabel, icon: Icons.update_rounded, color: Colors.orange),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Top Songs tab (conditional)
+                  if (hasExtraSections)
+                    SingleChildScrollView(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: extraSections,
+                      ),
+                    ),
+                  // Trend tab
+                  Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(l10n.playTrend, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 16),
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.all(24.0),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.surface,
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: kCardBoxShadow,
+                            ),
+                            child: InteractiveLineChart(historyData: details['history'] ?? {}),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildIconBox(BuildContext context) {
+    return Container(
+      width: 72,
+      height: 72,
+      decoration: BoxDecoration(
+        color: accentColor.withAlpha(30),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Icon(fallbackIcon, size: 36, color: accentColor),
+    );
+  }
+}

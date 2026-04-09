@@ -2,6 +2,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
 import '../services/track_detail_resolver.dart';
+import '../widgets/cover_thumbnail.dart';
+import '../widgets/rank_utils.dart';
 import 'track_detail_screen.dart';
 import 'artist_detail_screen.dart';
 import 'album_detail_screen.dart';
@@ -54,16 +56,7 @@ class FullListScreen extends StatelessWidget {
         itemBuilder: (context, index) {
           final entry = sortedEntries[index];
           final rank = index + 1;
-          Color rankColor;
-          if (rank == 1) {
-            rankColor = Colors.amber;
-          } else if (rank == 2) {
-            rankColor = Colors.grey.shade400;
-          } else if (rank == 3) {
-            rankColor = Colors.brown.shade300;
-          } else {
-            rankColor = Theme.of(context).colorScheme.onSurfaceVariant;
-          }
+          final rankColor = getRankColor(rank, context);
 
           return ListTile(
             onTap: type != 'none' ? () {
@@ -100,7 +93,7 @@ class FullListScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                _buildCoverThumbnail(context, entry.key.toString(), icon, 40),
+                CoverThumbnail(name: entry.key.toString(), detailsMap: detailsMap, fallbackIcon: icon, size: 40),
               ],
             ),
             title: Text(
@@ -127,41 +120,6 @@ class FullListScreen extends StatelessWidget {
           );
         },
       ),
-    );
-  }
-
-  Widget _buildCoverThumbnail(BuildContext context, String name, IconData fallbackIcon, double size) {
-    final details = detailsMap?[name];
-    final String coverPath = details?['cover']?.toString() ?? '';
-    final bool hasCover = coverPath.isNotEmpty && File(coverPath).existsSync();
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(8),
-      child: hasCover
-          ? Image.file(
-              File(coverPath),
-              width: size,
-              height: size,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
-                width: size,
-                height: size,
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(fallbackIcon, size: size * 0.5, color: Theme.of(context).colorScheme.onPrimaryContainer),
-              ),
-            )
-          : Container(
-              width: size,
-              height: size,
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(fallbackIcon, size: size * 0.5, color: Theme.of(context).colorScheme.onPrimaryContainer),
-            ),
     );
   }
 }

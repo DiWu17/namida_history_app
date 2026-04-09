@@ -548,6 +548,24 @@ abstract class AppLocalizations {
   /// **'No details available for this item'**
   String get noItemDetails;
 
+  /// No description provided for @tabOverview.
+  ///
+  /// In en, this message translates to:
+  /// **'Overview'**
+  String get tabOverview;
+
+  /// No description provided for @tabTopSongs.
+  ///
+  /// In en, this message translates to:
+  /// **'Top Songs'**
+  String get tabTopSongs;
+
+  /// No description provided for @tabTrend.
+  ///
+  /// In en, this message translates to:
+  /// **'Trend'**
+  String get tabTrend;
+
   /// No description provided for @fullListSuffix.
   ///
   /// In en, this message translates to:
@@ -571,6 +589,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Set to play songs directly in Namida'**
   String get namidaPathHint;
+
+  /// No description provided for @namidaAndroidHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Namida will be launched automatically via Android Intent'**
+  String get namidaAndroidHint;
 
   /// No description provided for @chooseNamidaExe.
   ///
