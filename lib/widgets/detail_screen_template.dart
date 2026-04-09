@@ -44,8 +44,9 @@ class DetailScreenTemplate extends StatelessWidget {
       length: tabs.length,
       child: Scaffold(
         appBar: AppBar(
-          title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-          backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+          title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+          surfaceTintColor: Colors.transparent,
+          scrolledUnderElevation: 0,
           actions: actions,
         ),
         floatingActionButton: floatingActionButton,
@@ -61,7 +62,7 @@ class DetailScreenTemplate extends StatelessWidget {
                 children: [
                   if (hasCover)
                     ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(10),
                       child: Image.file(
                         File(coverPath),
                         width: 72,
@@ -81,7 +82,7 @@ class DetailScreenTemplate extends StatelessWidget {
                       children: [
                         Text(
                           title,
-                          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -91,7 +92,7 @@ class DetailScreenTemplate extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                             decoration: BoxDecoration(
                               color: accentColor.withAlpha(30),
-                              borderRadius: BorderRadius.circular(16),
+                              borderRadius: BorderRadius.circular(12),
                               border: Border.all(color: accentColor.withAlpha(50)),
                             ),
                             child: Text(
@@ -126,12 +127,12 @@ class DetailScreenTemplate extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Text(l10n.historyTitle, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        Text(l10n.historyTitle, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                         const SizedBox(height: 16),
                         Card(
                           elevation: 0,
                           color: Theme.of(context).colorScheme.surfaceContainerHighest.withAlpha(50),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                           child: Padding(
                             padding: const EdgeInsets.all(16.0),
                             child: Column(
@@ -161,16 +162,12 @@ class DetailScreenTemplate extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Text(l10n.playTrend, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        Text(l10n.playTrend, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                         const SizedBox(height: 16),
                         Expanded(
                           child: Container(
-                            padding: const EdgeInsets.all(24.0),
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.surface,
-                              borderRadius: BorderRadius.circular(20),
-                              boxShadow: kCardBoxShadow,
-                            ),
+                            padding: const EdgeInsets.all(20.0),
+                            decoration: namidaCardDecoration(context, borderRadius: 16),
                             child: InteractiveLineChart(historyData: details['history'] ?? {}),
                           ),
                         ),
@@ -191,10 +188,10 @@ class DetailScreenTemplate extends StatelessWidget {
       width: 72,
       height: 72,
       decoration: BoxDecoration(
-        color: accentColor.withAlpha(30),
-        borderRadius: BorderRadius.circular(12),
+        color: accentColor.withAlpha(25),
+        borderRadius: BorderRadius.circular(10),
       ),
-      child: Icon(fallbackIcon, size: 36, color: accentColor),
+      child: Icon(fallbackIcon, size: 32, color: accentColor),
     );
   }
 }

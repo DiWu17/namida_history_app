@@ -31,16 +31,12 @@ class PeriodsCard extends StatelessWidget {
     }
 
     return Container(
-      padding: const EdgeInsets.all(24.0),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: kCardBoxShadow,
-      ),
+      padding: const EdgeInsets.all(20.0),
+      decoration: namidaCardDecoration(context, borderRadius: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(AppLocalizations.of(context)!.periodDistributionTitle, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          Text(AppLocalizations.of(context)!.periodDistributionTitle, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
           const SizedBox(height: 20),
           SizedBox(
             height: 240,
@@ -67,16 +63,12 @@ class WeeklyCard extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
 
     return Container(
-      padding: const EdgeInsets.all(24.0),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: kCardBoxShadow,
-      ),
+      padding: const EdgeInsets.all(20.0),
+      decoration: namidaCardDecoration(context, borderRadius: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(l10n.weeklyPatternTitle, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          Text(l10n.weeklyPatternTitle, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
           const SizedBox(height: 20),
           for (var d in days)
             _buildSimpleBar(
@@ -99,11 +91,11 @@ class WeeklyCard extends StatelessWidget {
 
   Widget _buildSimpleBar(BuildContext context, String label, int value, int maxVal, Color color) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      padding: const EdgeInsets.symmetric(vertical: 6.0),
       child: Row(
         children: [
           SizedBox(
-            width: 72,
+            width: 64,
             child: Text(
               label,
               style: TextStyle(

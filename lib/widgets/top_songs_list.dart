@@ -26,12 +26,12 @@ class TopSongsList extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(sectionTitle, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        Text(sectionTitle, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
         const SizedBox(height: 16),
         Card(
           elevation: 0,
-          color: Theme.of(context).colorScheme.surfaceContainerHighest.withAlpha(100),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          color: Theme.of(context).colorScheme.surfaceContainerHighest.withAlpha(80),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           child: ListView.separated(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),

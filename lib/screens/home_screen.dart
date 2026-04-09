@@ -170,8 +170,9 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
       body: CustomScrollView(
         slivers: [
           SliverAppBar.large(
-            title: Text(AppLocalizations.of(context)!.namidaHistory, style: const TextStyle(fontWeight: FontWeight.bold)),
-            backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+            title: Text(AppLocalizations.of(context)!.namidaHistory, style: const TextStyle(fontWeight: FontWeight.w700, letterSpacing: -0.5)),
+            surfaceTintColor: Colors.transparent,
+            scrolledUnderElevation: 0,
             actions: [
               if (hasData)
                 Padding(
@@ -253,15 +254,14 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
 
   Widget _buildSectionTitle(String title) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16.0),
-      child: Center(
-        child: Text(
-          title, 
-          style: const TextStyle(
-            fontSize: 24, 
-            fontWeight: FontWeight.w900, 
-            letterSpacing: 0.5
-          )
+      padding: const EdgeInsets.only(bottom: 14.0),
+      child: Text(
+        title,
+        style: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.2,
+          color: Theme.of(context).colorScheme.onSurface.withAlpha(220),
         ),
       ),
     );
@@ -404,12 +404,8 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
               _buildSectionTitle(l10n.sectionPlayHistoryTrend),
               Container(
                 height: 300,
-                padding: const EdgeInsets.all(24.0),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surface,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: kCardBoxShadow,
-                ),
+                padding: const EdgeInsets.all(20.0),
+                decoration: namidaCardDecoration(context, borderRadius: 16),
                 child: InteractiveLineChart(historyData: summary['play_history_by_date'] ?? {}),
               ),
             ],

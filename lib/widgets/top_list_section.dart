@@ -42,7 +42,7 @@ class TopListSection extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
             TextButton(
               onPressed: () {
                 Navigator.push(context, MaterialPageRoute(builder: (ctx) => FullListScreen(title: title.replaceAll(RegExp(r' Top \d+'), ''), data: data, icon: icon, type: type, detailsMap: detailsMap, trackDetailsMap: trackDetailsMap, allTrackCompact: allTrackCompact)));
@@ -92,8 +92,8 @@ class TopList extends StatelessWidget {
 
     return Card(
       elevation: 0,
-      color: Theme.of(context).colorScheme.surfaceContainerHighest.withAlpha(100),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      color: Theme.of(context).colorScheme.surfaceContainerHighest.withAlpha(80),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       child: ListView.separated(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
@@ -126,7 +126,7 @@ class TopList extends StatelessWidget {
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.noItemDetails)));
               }
             } : null,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             leading: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -151,13 +151,13 @@ class TopList extends StatelessWidget {
               entry.key.toString(),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
             ),
             trailing: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(20),
+                color: Theme.of(context).colorScheme.primaryContainer.withAlpha(180),
+                borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
                 '${entry.value} ${AppLocalizations.of(context)!.playsSuffix}',
@@ -214,7 +214,7 @@ class MonthlyTopSongPreview extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(AppLocalizations.of(context)!.monthlyTopSong, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+            Text(AppLocalizations.of(context)!.monthlyTopSong, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
             if (needsTruncation)
               TextButton(
                 onPressed: () {
@@ -227,8 +227,8 @@ class MonthlyTopSongPreview extends StatelessWidget {
         const SizedBox(height: 8),
         Card(
           elevation: 0,
-          color: Theme.of(context).colorScheme.surfaceContainerHighest.withAlpha(100),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          color: Theme.of(context).colorScheme.surfaceContainerHighest.withAlpha(80),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           child: ListView.separated(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
@@ -253,14 +253,14 @@ class MonthlyTopSongPreview extends StatelessWidget {
                     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.noTrackDetails)));
                   }
                 },
-                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                 leading: Container(
-                  width: 44,
-                  height: 44,
+                  width: 42,
+                  height: 42,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(14),
+                    color: Theme.of(context).colorScheme.primaryContainer.withAlpha(180),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
                     displayMonth,

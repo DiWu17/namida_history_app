@@ -36,6 +36,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get chinese => '中文';
 
   @override
+  String get themeMode => '主题';
+
+  @override
+  String get themeModeLight => '浅色';
+
+  @override
+  String get themeModeDark => '深色';
+
+  @override
+  String get themeModeSystem => '跟随系统';
+
+  @override
   String get chooseBackupZip => '请选择 Namida 备份 ZIP 文件以开始';
 
   @override

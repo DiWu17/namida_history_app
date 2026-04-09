@@ -22,8 +22,9 @@ class MonthlyTopSongFullScreen extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.monthlyTopSong, style: const TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        title: Text(l10n.monthlyTopSong, style: const TextStyle(fontWeight: FontWeight.w700)),
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
       ),
       body: ListView.separated(
         padding: const EdgeInsets.symmetric(vertical: 8),
@@ -48,14 +49,14 @@ class MonthlyTopSongFullScreen extends StatelessWidget {
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.noTrackDetails)));
               }
             },
-            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             leading: Container(
-              width: 44,
-              height: 44,
+              width: 42,
+              height: 42,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(14),
+                color: Theme.of(context).colorScheme.primaryContainer.withAlpha(180),
+                borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
                 displayMonth,

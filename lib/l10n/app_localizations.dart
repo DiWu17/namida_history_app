@@ -152,6 +152,30 @@ abstract class AppLocalizations {
   /// **'简体中文'**
   String get chinese;
 
+  /// No description provided for @themeMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Theme'**
+  String get themeMode;
+
+  /// No description provided for @themeModeLight.
+  ///
+  /// In en, this message translates to:
+  /// **'Light'**
+  String get themeModeLight;
+
+  /// No description provided for @themeModeDark.
+  ///
+  /// In en, this message translates to:
+  /// **'Dark'**
+  String get themeModeDark;
+
+  /// No description provided for @themeModeSystem.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow System'**
+  String get themeModeSystem;
+
   /// No description provided for @chooseBackupZip.
   ///
   /// In en, this message translates to:

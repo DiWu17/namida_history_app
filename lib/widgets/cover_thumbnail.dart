@@ -22,7 +22,7 @@ class CoverThumbnail extends StatelessWidget {
     final bool hasCover = coverPath.isNotEmpty && File(coverPath).existsSync();
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(10),
       child: hasCover
           ? Image.file(
               File(coverPath),
@@ -43,7 +43,7 @@ class CoverThumbnail extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.primaryContainer,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(10),
       ),
       child: Icon(fallbackIcon, size: size * 0.5, color: Theme.of(context).colorScheme.onPrimaryContainer),
     );

@@ -37,6 +37,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get chinese => '简体中文';
 
   @override
+  String get themeMode => 'Theme';
+
+  @override
+  String get themeModeLight => 'Light';
+
+  @override
+  String get themeModeDark => 'Dark';
+
+  @override
+  String get themeModeSystem => 'Follow System';
+
+  @override
   String get chooseBackupZip => 'Choose a Namida Backup ZIP file to begin';
 
   @override

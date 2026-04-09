@@ -25,20 +25,24 @@ class HighlightCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [color.withAlpha(40), color.withAlpha(10)],
+          colors: [
+            color.withAlpha(isDark ? 30 : 35),
+            color.withAlpha(isDark ? 8 : 10),
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withAlpha(50)),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withAlpha(isDark ? 30 : 40), width: 0.5),
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(16),
           onTap: trackName != null ? () {
             final details = resolveTrackDetail(trackName!, trackDetails, allTrackCompact);
             if (details != null) {
@@ -48,19 +52,19 @@ class HighlightCard extends StatelessWidget {
             }
           } : null,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 24.0),
+            padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 20.0),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: color.withAlpha(50),
-                    shape: BoxShape.circle,
+                    color: color.withAlpha(isDark ? 35 : 40),
+                    borderRadius: BorderRadius.circular(14),
                   ),
-                  child: Icon(icon, color: color, size: 36),
+                  child: Icon(icon, color: color, size: 28),
                 ),
-                const SizedBox(width: 20),
+                const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -68,19 +72,19 @@ class HighlightCard extends StatelessWidget {
                       Text(
                         title,
                         style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 17,
                           color: color,
-                          letterSpacing: 0.5,
+                          letterSpacing: 0.2,
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
                       Text(
                         subtitle,
                         style: TextStyle(
-                          height: 1.6,
-                          fontSize: 15,
-                          color: Theme.of(context).colorScheme.onSurface,
+                          height: 1.5,
+                          fontSize: 14,
+                          color: Theme.of(context).colorScheme.onSurface.withAlpha(isDark ? 200 : 180),
                         ),
                       ),
                     ],

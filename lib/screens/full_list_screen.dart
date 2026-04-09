@@ -42,8 +42,9 @@ class FullListScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('$title ${AppLocalizations.of(context)!.fullListSuffix}', style: const TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        title: Text('$title ${AppLocalizations.of(context)!.fullListSuffix}', style: const TextStyle(fontWeight: FontWeight.w700)),
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
       ),
       body: ListView.separated(
         itemCount: sortedEntries.length,
@@ -75,7 +76,7 @@ class FullListScreen extends StatelessWidget {
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.noItemDetails)));
               }
             } : null,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             leading: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -100,13 +101,13 @@ class FullListScreen extends StatelessWidget {
               entry.key.toString(), 
               maxLines: 1, 
               overflow: TextOverflow.ellipsis, 
-              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)
             ),
             trailing: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(20),
+                color: Theme.of(context).colorScheme.primaryContainer.withAlpha(180),
+                borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
                 '${entry.value} ${AppLocalizations.of(context)!.playsSuffix}',

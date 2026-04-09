@@ -32,12 +32,12 @@ class WelcomePlaceholder extends StatelessWidget {
             ),
           ] else ...[
             Container(
-              padding: const EdgeInsets.all(28),
+              padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primaryContainer.withAlpha(50),
+                color: Theme.of(context).colorScheme.primaryContainer.withAlpha(40),
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.analytics_rounded, size: 80, color: Theme.of(context).colorScheme.primary),
+              child: Icon(Icons.analytics_rounded, size: 72, color: Theme.of(context).colorScheme.primary),
             ),
             const SizedBox(height: 32),
             Text(
@@ -54,12 +54,12 @@ class WelcomePlaceholder extends StatelessWidget {
             const SizedBox(height: 48),
             FilledButton.icon(
               style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               ),
               onPressed: isLoading ? null : onPickFile,
               icon: const Icon(Icons.file_open),
-              label: Text(l10n.selectBackupZip, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              label: Text(l10n.selectBackupZip, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
             ),
           ],
         ],

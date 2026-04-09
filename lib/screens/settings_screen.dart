@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
 import '../providers/locale_provider.dart';
+import '../providers/theme_provider.dart';
 import '../services/config_service.dart';
 
 /// The 8 core stat card keys in default order.
@@ -153,14 +154,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.settingsTitle, style: const TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        title: Text(l10n.settingsTitle, style: const TextStyle(fontWeight: FontWeight.w700)),
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
       ),
       body: ListView(
         padding: const EdgeInsets.symmetric(vertical: 8),
         children: [
           // -- General Settings --
           _sectionHeader(l10n.settingsGeneralSection),
+          _buildThemeModeTile(l10n),
           _buildLanguageTile(l10n),
           _buildMonthFormatTile(l10n),
 
@@ -228,6 +231,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
           fontWeight: FontWeight.w600,
           color: Theme.of(context).colorScheme.primary,
         ),
+      ),
+    );
+  }
+
+  // --- Theme Mode ---
+  Widget _buildThemeModeTile(AppLocalizations l10n) {
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    return ListTile(
+      leading: const Icon(Icons.brightness_6_rounded),
+      title: Text(l10n.themeMode),
+      trailing: DropdownButton<ThemeMode>(
+        value: themeProvider.themeMode,
+        underline: const SizedBox.shrink(),
+        items: [
+          DropdownMenuItem(value: ThemeMode.system, child: Text(l10n.themeModeSystem)),
+          DropdownMenuItem(value: ThemeMode.light, child: Text(l10n.themeModeLight)),
+          DropdownMenuItem(value: ThemeMode.dark, child: Text(l10n.themeModeDark)),
+        ],
+        onChanged: (ThemeMode? mode) {
+          if (mode != null) {
+            themeProvider.setThemeMode(mode);
+            setState(() {});
+          }
+        },
       ),
     );
   }
