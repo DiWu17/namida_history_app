@@ -2,7 +2,7 @@
   "appTitle": "Namida Charts",
   "homeTitle": "主页",
   "settingsTitle": "设置",
-  "optionalPath": "可选路径",
+  "optionalPath": "本地音乐文件夹",
   "metadataExtraction": "匹配本地音乐文件以补充元数据信息",
   "chooseDirectory": "选择文件夹",
   "language": "语言",

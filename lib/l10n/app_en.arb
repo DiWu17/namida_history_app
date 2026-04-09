@@ -8,7 +8,7 @@
     "description": "The title of the home screen"
   },
   "settingsTitle": "Settings",
-  "optionalPath": "Optional Path",
+  "optionalPath": "Local Music Folder",
   "metadataExtraction": "Match local music files for metadata extraction",
   "chooseDirectory": "Choose Directory",
   "language": "Language",
