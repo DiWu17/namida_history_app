@@ -1,4 +1,4 @@
-# 🎵 Namida History Analyzer
+# 🎵 Namida Chart
 
 **English** | [简体中文](README_zh.md)
 

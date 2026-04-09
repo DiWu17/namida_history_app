@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../l10n/app_localizations.dart';
@@ -35,6 +36,14 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
     super.initState();
     _musicDirectory = ConfigService().get('music_directory');
     _namidaPath = ConfigService().get('namida_path');
+    // Default namida path on Windows
+    if (_namidaPath == null && !kIsWeb && Platform.isWindows) {
+      const defaultPath = r'C:\Program Files\namida\namida.exe';
+      if (File(defaultPath).existsSync()) {
+        _namidaPath = defaultPath;
+        ConfigService().set('namida_path', defaultPath);
+      }
+    }
   }
 
   void _showSettingsDialog() {
@@ -88,6 +97,7 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
                     ),
                   ],
                   const Divider(height: 32),
+                  if (!kIsWeb && !Platform.isAndroid) ...[
                   Text('${l10n.namidaPathLabel}:'),
                   const SizedBox(height: 8),
                   Text(
@@ -128,6 +138,7 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
                       icon: const Icon(Icons.clear, size: 16),
                       label: Text(l10n.clearPath),
                     ),
+                  ],
                   ],
                   const Divider(height: 32),
                   Row(
@@ -555,10 +566,25 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
 
   Widget _buildMonthlyTopSongMap(Map<dynamic, dynamic> data, Map<dynamic, dynamic>? trackDetails, Map<dynamic, dynamic>? allTrackCompact) {
     final sortedKeys = data.keys.toList()..sort();
+    final int maxPreview = 12;
+    final bool needsTruncation = sortedKeys.length > maxPreview;
+    final displayKeys = needsTruncation ? sortedKeys.sublist(sortedKeys.length - maxPreview) : sortedKeys;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(AppLocalizations.of(context)!.monthlyTopSong, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(AppLocalizations.of(context)!.monthlyTopSong, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+              if (needsTruncation)
+                TextButton(
+                  onPressed: () {
+                    Navigator.push(context, MaterialPageRoute(builder: (ctx) => _MonthlyTopSongFullScreen(data: data, trackDetails: trackDetails, allTrackCompact: allTrackCompact)));
+                  },
+                  child: Text(AppLocalizations.of(context)!.viewFullList, style: const TextStyle(fontWeight: FontWeight.bold)),
+                ),
+            ],
+          ),
         const SizedBox(height: 8),
         Card(
           elevation: 0,
@@ -567,7 +593,7 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
           child: ListView.separated(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            itemCount: sortedKeys.length,
+            itemCount: displayKeys.length,
             separatorBuilder: (_, __) => Divider(
               height: 1, 
               indent: 72, 
@@ -575,7 +601,7 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
               color: Theme.of(context).colorScheme.outlineVariant.withAlpha(50)
             ),
             itemBuilder: (context, index) {
-              final key = sortedKeys[index];
+              final key = displayKeys[index];
               final monthStr = key.toString().substring(5); // e.g., "01" from "2023-01"
               final trackName = data[key].toString();
                   return ListTile(
@@ -1029,6 +1055,83 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
               ),
               child: Icon(fallbackIcon, size: size * 0.5, color: Theme.of(context).colorScheme.onPrimaryContainer),
             ),
+    );
+  }
+}
+
+class _MonthlyTopSongFullScreen extends StatelessWidget {
+  final Map<dynamic, dynamic> data;
+  final Map<dynamic, dynamic>? trackDetails;
+  final Map<dynamic, dynamic>? allTrackCompact;
+
+  const _MonthlyTopSongFullScreen({
+    required this.data,
+    this.trackDetails,
+    this.allTrackCompact,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final sortedKeys = data.keys.toList()..sort();
+    final l10n = AppLocalizations.of(context)!;
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(l10n.monthlyTopSong, style: const TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+      ),
+      body: ListView.separated(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        itemCount: sortedKeys.length,
+        separatorBuilder: (_, __) => Divider(
+          height: 1,
+          indent: 72,
+          endIndent: 20,
+          color: Theme.of(context).colorScheme.outlineVariant.withAlpha(50),
+        ),
+        itemBuilder: (context, index) {
+          final key = sortedKeys[index];
+          final monthStr = key.toString().substring(5);
+          final trackName = data[key].toString();
+          return ListTile(
+            onTap: () {
+              final details = resolveTrackDetail(trackName, trackDetails, allTrackCompact);
+              if (details != null) {
+                Navigator.push(context, MaterialPageRoute(builder: (ctx) => TrackDetailScreen(trackName: trackName, details: details)));
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.noTrackDetails)));
+              }
+            },
+            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            leading: Container(
+              width: 44,
+              height: 44,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Text(
+                monthStr,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onPrimaryContainer,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            title: Text(
+              trackName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+            ),
+            subtitle: Padding(
+              padding: const EdgeInsets.only(top: 4.0),
+              child: Text(key.toString(), style: const TextStyle(fontSize: 13)),
+            ),
+          );
+        },
+      ),
     );
   }
 }

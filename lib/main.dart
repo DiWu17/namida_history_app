@@ -29,8 +29,17 @@ class MyApp extends StatelessWidget {
     return Consumer<LocaleProvider>(
       builder: (context, localeProvider, child) {
         return MaterialApp(
-          title: 'Namida History Analyzer',
+          title: 'Namida Charts',
           locale: localeProvider.locale,
+          localeResolutionCallback: (deviceLocale, supportedLocales) {
+            if (localeProvider.locale != null) return localeProvider.locale;
+            for (var locale in supportedLocales) {
+              if (locale.languageCode == deviceLocale?.languageCode) {
+                return locale;
+              }
+            }
+            return supportedLocales.first;
+          },
           localizationsDelegates: const [
             AppLocalizations.delegate,
             GlobalMaterialLocalizations.delegate,

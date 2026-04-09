@@ -9,7 +9,7 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get appTitle => 'Namida History Analyzer';
+  String get appTitle => 'Namida Charts';
 
   @override
   String get homeTitle => 'Home';
@@ -65,13 +65,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get ok => 'OK';
 
   @override
-  String get welcomeMessage => 'Welcome to Namida Analyzer';
+  String get welcomeMessage => 'Welcome to Namida Charts';
 
   @override
   String get selectBackupZip => 'Select Backup ZIP';
 
   @override
-  String get namidaHistory => 'Namida History';
+  String get namidaHistory => 'Namida Charts';
 
   @override
   String get resetAndSelectNewFile => 'Reset and select new file';

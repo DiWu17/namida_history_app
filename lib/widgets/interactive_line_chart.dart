@@ -59,7 +59,7 @@ class _InteractiveLineChartState extends State<InteractiveLineChart> {
     }
 
     _minX = 0;
-    _maxX = (_totalPoints > 30 ? 30 : _totalPoints - 1).toDouble();
+    _maxX = (_totalPoints - 1).toDouble();
     if (_maxX < 0) _maxX = 0;
   }
 

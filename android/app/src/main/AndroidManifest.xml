@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
-        android:label="namida_history_app"
+        android:label="Namida Charts"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

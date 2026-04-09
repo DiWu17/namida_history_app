@@ -1,5 +1,5 @@
 {
-  "appTitle": "Namida History Analyzer",
+  "appTitle": "Namida Charts",
   "@appTitle": {
     "description": "The title of the application"
   },
@@ -23,9 +23,9 @@
   "analysisComplete": "Analysis complete!",
   "errorTitle": "Error",
   "ok": "OK",
-  "welcomeMessage": "Welcome to Namida Analyzer",
+  "welcomeMessage": "Welcome to Namida Charts",
   "selectBackupZip": "Select Backup ZIP",
-  "namidaHistory": "Namida History",
+  "namidaHistory": "Namida Charts",
   "resetAndSelectNewFile": "Reset and select new file",
   "viewFullList": "View Full List",
   "monthlyTopSong": "Monthly Top Song",

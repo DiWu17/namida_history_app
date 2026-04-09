@@ -101,7 +101,7 @@ abstract class AppLocalizations {
   /// The title of the application
   ///
   /// In en, this message translates to:
-  /// **'Namida History Analyzer'**
+  /// **'Namida Charts'**
   String get appTitle;
 
   /// The title of the home screen
@@ -209,7 +209,7 @@ abstract class AppLocalizations {
   /// No description provided for @welcomeMessage.
   ///
   /// In en, this message translates to:
-  /// **'Welcome to Namida Analyzer'**
+  /// **'Welcome to Namida Charts'**
   String get welcomeMessage;
 
   /// No description provided for @selectBackupZip.
@@ -221,7 +221,7 @@ abstract class AppLocalizations {
   /// No description provided for @namidaHistory.
   ///
   /// In en, this message translates to:
-  /// **'Namida History'**
+  /// **'Namida Charts'**
   String get namidaHistory;
 
   /// No description provided for @resetAndSelectNewFile.

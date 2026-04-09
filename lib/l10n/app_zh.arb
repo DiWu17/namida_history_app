@@ -1,5 +1,5 @@
 {
-  "appTitle": "Namida 历史记录分析器",
+  "appTitle": "Namida Charts",
   "homeTitle": "主页",
   "settingsTitle": "设置",
   "optionalPath": "可选路径",
@@ -17,9 +17,9 @@
   "analysisComplete": "分析完成！",
   "errorTitle": "错误",
   "ok": "确定",
-  "welcomeMessage": "欢迎使用 Namida 分析器",
+  "welcomeMessage": "欢迎使用 Namida Charts",
   "selectBackupZip": "选择备份 ZIP",
-  "namidaHistory": "Namida 历史",
+  "namidaHistory": "Namida Charts",
   "resetAndSelectNewFile": "重置并选择新文件",
   "viewFullList": "查看总榜",
   "monthlyTopSong": "每月主打歌",

@@ -2,15 +2,16 @@ import 'package:flutter/material.dart';
 import '../services/config_service.dart';
 
 class LocaleProvider extends ChangeNotifier {
-  Locale _locale = const Locale('zh');
+  Locale? _locale;
 
-  Locale get locale => _locale;
+  Locale? get locale => _locale;
 
   void loadFromConfig() {
     final saved = ConfigService().get('locale');
     if (saved != null && ['en', 'zh'].contains(saved)) {
       _locale = Locale(saved);
     }
+    // If no saved locale, _locale remains null → uses device locale
   }
 
   void setLocale(Locale locale) {
@@ -23,8 +24,8 @@ class LocaleProvider extends ChangeNotifier {
   }
 
   void clearLocale() {
-    _locale = const Locale('zh');
-    ConfigService().set('locale', 'zh');
+    _locale = null;
+    ConfigService().remove('locale');
     notifyListeners();
   }
 }

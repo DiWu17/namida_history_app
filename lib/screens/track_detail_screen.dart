@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import '../l10n/app_localizations.dart';
 import '../services/config_service.dart';
 import '../widgets/interactive_line_chart.dart';
@@ -16,6 +17,24 @@ class TrackDetailScreen extends StatelessWidget {
 
   Future<void> _playTrack(BuildContext context) async {
     final l10n = AppLocalizations.of(context)!;
+
+    if (!kIsWeb && Platform.isAndroid) {
+      // On Android, launch Namida app via intent
+      try {
+        await Process.run('am', [
+          'start',
+          '-n', 'com.msob7y.namida/.MainActivity',
+        ]);
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('${l10n.launchFailed}: $e')),
+          );
+        }
+      }
+      return;
+    }
+
     final localPath = details['localPath']?.toString() ?? '';
 
     if (localPath.isEmpty || !File(localPath).existsSync()) {
@@ -48,7 +67,7 @@ class TrackDetailScreen extends StatelessWidget {
     final bool hasCover = coverPath.isNotEmpty && File(coverPath).existsSync();
 
     final String localPath = details['localPath']?.toString() ?? '';
-    final bool hasLocalFile = localPath.isNotEmpty && File(localPath).existsSync();
+    final bool hasLocalFile = (!kIsWeb && Platform.isAndroid) || (localPath.isNotEmpty && File(localPath).existsSync());
 
     return Scaffold(
       appBar: AppBar(

@@ -9,7 +9,7 @@ class AppLocalizationsZh extends AppLocalizations {
   AppLocalizationsZh([String locale = 'zh']) : super(locale);
 
   @override
-  String get appTitle => 'Namida 历史记录分析器';
+  String get appTitle => 'Namida Charts';
 
   @override
   String get homeTitle => '主页';
@@ -63,13 +63,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get ok => '确定';
 
   @override
-  String get welcomeMessage => '欢迎使用 Namida 分析器';
+  String get welcomeMessage => '欢迎使用 Namida Charts';
 
   @override
   String get selectBackupZip => '选择备份 ZIP';
 
   @override
-  String get namidaHistory => 'Namida 历史';
+  String get namidaHistory => 'Namida Charts';
 
   @override
   String get resetAndSelectNewFile => '重置并选择新文件';
