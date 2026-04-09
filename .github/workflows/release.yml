@@ -1,0 +1,101 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_android:
+        description: 'Build Android APK'
+        type: boolean
+        default: true
+      build_windows:
+        description: 'Build Windows App'
+        type: boolean
+        default: true
+
+jobs:
+  create_release:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.extract_version.outputs.version }}
+      version_name: ${{ steps.extract_version.outputs.version_name }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version from pubspec.yaml
+        id: extract_version
+        run: |
+          VERSION=$(grep -o 'version:.*' pubspec.yaml | awk '{print $2}')
+          VERSION_NAME=$(echo $VERSION | cut -d'+' -f1)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "version_name=$VERSION_NAME" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release (draft)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.extract_version.outputs.version_name }}
+          name: Release v${{ steps.extract_version.outputs.version_name }}
+          draft: true
+          generate_release_notes: true
+
+  build_android:
+    if: ${{ inputs.build_android }}
+    needs: create_release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version-file: pubspec.yaml
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build APK (arm64)
+        run: flutter build apk --target-platform android-arm64 --release
+
+      - name: Rename APK
+        run: |
+          mkdir -p build_final
+          mv build/app/outputs/flutter-apk/app-arm64-v8a-release.apk \
+            build_final/namida-history-v${{ needs.create_release.outputs.version_name }}-arm64.apk
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.create_release.outputs.version_name }}
+          draft: true
+          files: build_final/*
+
+  build_windows:
+    if: ${{ inputs.build_windows }}
+    needs: create_release
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version-file: pubspec.yaml
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build Windows
+        run: flutter build windows --release
+
+      - name: Package as zip
+        run: |
+          Compress-Archive -Path "build\windows\x64\runner\Release\*" -DestinationPath "namida-history-v${{ needs.create_release.outputs.version_name }}-windows-x64.zip"
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.create_release.outputs.version_name }}
+          draft: true
+          files: "*.zip"
