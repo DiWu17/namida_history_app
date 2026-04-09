@@ -56,6 +56,20 @@ class AppLocalizationsEn extends AppLocalizations {
       'Extracting and analyzing...\\nThis may take a moment.';
 
   @override
+  String progressExtracting(int current, int total) {
+    return 'Extracting files… ($current/$total)';
+  }
+
+  @override
+  String get progressScanning => 'Scanning local music files…';
+
+  @override
+  String get progressAnalyzing => 'Analyzing data & generating report…';
+
+  @override
+  String get progressCleanup => 'Cleaning up temporary files…';
+
+  @override
   String get analysisComplete => 'Analysis complete!';
 
   @override
@@ -330,7 +344,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dragToReorder =>
-      'Long press to drag and reorder, tap to toggle visibility';
+      'Drag to upper half to show, lower half to hide. Tap to toggle';
 
   @override
   String get visible => 'Visible';

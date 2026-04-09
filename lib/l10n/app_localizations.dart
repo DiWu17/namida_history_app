@@ -188,6 +188,30 @@ abstract class AppLocalizations {
   /// **'Extracting and analyzing...\\nThis may take a moment.'**
   String get extractingMessage;
 
+  /// No description provided for @progressExtracting.
+  ///
+  /// In en, this message translates to:
+  /// **'Extracting files… ({current}/{total})'**
+  String progressExtracting(int current, int total);
+
+  /// No description provided for @progressScanning.
+  ///
+  /// In en, this message translates to:
+  /// **'Scanning local music files…'**
+  String get progressScanning;
+
+  /// No description provided for @progressAnalyzing.
+  ///
+  /// In en, this message translates to:
+  /// **'Analyzing data & generating report…'**
+  String get progressAnalyzing;
+
+  /// No description provided for @progressCleanup.
+  ///
+  /// In en, this message translates to:
+  /// **'Cleaning up temporary files…'**
+  String get progressCleanup;
+
   /// No description provided for @analysisComplete.
   ///
   /// In en, this message translates to:
@@ -701,7 +725,7 @@ abstract class AppLocalizations {
   /// No description provided for @dragToReorder.
   ///
   /// In en, this message translates to:
-  /// **'Long press to drag and reorder, tap to toggle visibility'**
+  /// **'Drag to upper half to show, lower half to hide. Tap to toggle'**
   String get dragToReorder;
 
   /// No description provided for @visible.

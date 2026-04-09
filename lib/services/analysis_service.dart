@@ -46,50 +46,56 @@ class AnalysisService {
     }
     Directory(mergedDir).createSync(recursive: true);
 
-    onProgress?.call('正在解压文件...');
-
-    // Run everything (extract + scan + analyze) in a background isolate
-    final coversDir = _coversDir;
-    final result = await Isolate.run(() async {
-      return _runAllInIsolate(
-        zipPaths, tempDir, mergedDir, musicDir, coversDir,
-      );
+    // Phase 1: Extract ZIPs
+    onProgress?.call('extracting:${zipPaths.length}');
+    final extractCount = await Isolate.run(() {
+      return _extractAndMerge(zipPaths, tempDir, mergedDir);
     });
-
-    return result;
-  }
-
-  /// Runs entirely in background isolate: extract → scan music → analyze.
-  static Future<Map<String, dynamic>> _runAllInIsolate(
-    List<String> zipPaths,
-    String tempDir,
-    String mergedDir,
-    String? musicDir,
-    String coversDir,
-  ) async {
-    // 1. Extract ZIPs and merge JSON
-    final extractCount = _extractAndMerge(zipPaths, tempDir, mergedDir);
     if (extractCount == 0) {
       return {'success': false, 'error': '提取历史文件夹失败，请检查ZIP格式或路径'};
     }
 
-    // 2. Scan music directory
-    final worker = AnalysisService._worker(coversDir, {}, {}, {});
+    // Phase 2: Scan music directory
+    final coversDir = _coversDir;
+    Map<String, Map<String, dynamic>> musicMeta = {};
+    Map<String, String> albumCovers = {};
+    Map<String, String> trackCovers = {};
     if (musicDir != null) {
-      await worker._scanMusicDirectory(musicDir);
+      onProgress?.call('scanning');
+      final scanResult = await Isolate.run(() async {
+        final worker = AnalysisService._worker(coversDir, {}, {}, {});
+        await worker._scanMusicDirectory(musicDir);
+        return {
+          'musicMetadata': worker._musicMetadata,
+          'albumCovers': worker._albumCovers,
+          'trackCovers': worker._trackCovers,
+        };
+      });
+      musicMeta = Map<String, Map<String, dynamic>>.from(
+        (scanResult['musicMetadata'] as Map).map((k, v) =>
+          MapEntry(k.toString(), Map<String, dynamic>.from(v as Map))),
+      );
+      albumCovers = Map<String, String>.from(scanResult['albumCovers'] as Map);
+      trackCovers = Map<String, String>.from(scanResult['trackCovers'] as Map);
     }
 
-    // 3. Load, enrich, and summarize
-    final records = worker._loadRecords(mergedDir);
-    worker._enrichRecords(records);
-    final summaries = worker._getAllSummaries(records);
+    // Phase 3: Load, enrich, and analyze
+    onProgress?.call('analyzing');
+    final result = await Isolate.run(() {
+      final worker = AnalysisService._worker(coversDir, musicMeta, albumCovers, trackCovers);
+      final records = worker._loadRecords(mergedDir);
+      worker._enrichRecords(records);
+      final summaries = worker._getAllSummaries(records);
+      return {'success': true, 'summaries': summaries};
+    });
 
-    // Cleanup
+    // Phase 4: Cleanup
+    onProgress?.call('cleanup');
     try {
       Directory(tempDir).deleteSync(recursive: true);
     } catch (_) {}
 
-    return {'success': true, 'summaries': summaries};
+    return result;
   }
 
   /// Runs in background isolate: extract ZIPs and merge JSON files.

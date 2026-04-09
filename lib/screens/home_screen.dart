@@ -94,7 +94,21 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
           validPaths,
           _musicDirectory,
           onProgress: (msg) {
-            if (mounted) setState(() => _statusMessage = msg);
+            if (!mounted) return;
+            String display;
+            if (msg.startsWith('extracting:')) {
+              final total = msg.split(':')[1];
+              display = l10n.progressExtracting(1, int.tryParse(total) ?? 1);
+            } else if (msg == 'scanning') {
+              display = l10n.progressScanning;
+            } else if (msg == 'analyzing') {
+              display = l10n.progressAnalyzing;
+            } else if (msg == 'cleanup') {
+              display = l10n.progressCleanup;
+            } else {
+              display = msg;
+            }
+            setState(() => _statusMessage = display);
           },
         );
 

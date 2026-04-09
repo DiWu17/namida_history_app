@@ -54,6 +54,20 @@ class AppLocalizationsZh extends AppLocalizations {
   String get extractingMessage => '正在解压与分析…\\n这可能需要一些时间。';
 
   @override
+  String progressExtracting(int current, int total) {
+    return '正在解压文件… ($current/$total)';
+  }
+
+  @override
+  String get progressScanning => '正在扫描本地音乐文件…';
+
+  @override
+  String get progressAnalyzing => '正在分析数据与生成报告…';
+
+  @override
+  String get progressCleanup => '正在清理临时文件…';
+
+  @override
   String get analysisComplete => '分析完成！';
 
   @override
@@ -325,7 +339,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsGeneralSection => '通用设置';
 
   @override
-  String get dragToReorder => '长按拖动排序，点击切换显示/隐藏';
+  String get dragToReorder => '拖动到上半部分显示，下半部分隐藏，点击切换';
 
   @override
   String get visible => '显示';

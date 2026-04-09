@@ -393,53 +393,139 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  // --- Core numbers reorderable list ---
+  // --- Core numbers with visible/hidden zones (single list, drag across boundary) ---
   Widget _buildCoreNumbersList(AppLocalizations l10n) {
-    return ReorderableListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: _coreItems.length,
-      onReorder: (oldIndex, newIndex) {
-        setState(() {
-          if (newIndex > oldIndex) newIndex--;
-          final item = _coreItems.removeAt(oldIndex);
-          _coreItems.insert(newIndex, item);
-        });
-        saveCoreNumbersConfig(_coreItems);
-      },
-      itemBuilder: (context, index) {
-        final entry = _coreItems[index];
-        final key = entry.key;
-        final visible = entry.value;
-        return ListTile(
-          key: ValueKey(key),
-          leading: Icon(coreKeyIcon(key), color: visible ? null : Theme.of(context).disabledColor),
-          title: Text(
-            coreKeyLabel(key, l10n),
-            style: TextStyle(
-              color: visible ? null : Theme.of(context).disabledColor,
-              decoration: visible ? null : TextDecoration.lineThrough,
-            ),
-          ),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                visible ? l10n.visible : l10n.hidden,
-                style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
-              ),
-              const SizedBox(width: 8),
-              const Icon(Icons.drag_handle),
-            ],
-          ),
-          onTap: () {
+    final currentVisibleCount = _coreItems.where((e) => e.value).length;
+
+    return Column(
+      children: [
+        // ── 显示 header (centered) ──
+        _zoneHeader(l10n.visible, Icons.visibility, Theme.of(context).colorScheme.primary),
+
+        // Single reorderable list with all items
+        ReorderableListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: _coreItems.length,
+          proxyDecorator: (child, index, animation) {
+            return Material(
+              elevation: 4,
+              borderRadius: BorderRadius.circular(12),
+              child: child,
+            );
+          },
+          onReorder: (oldIndex, newIndex) {
             setState(() {
-              _coreItems[index] = MapEntry(key, !visible);
+              final oldVisibleCount = _coreItems.where((e) => e.value).length;
+              final wasVisible = oldIndex < oldVisibleCount;
+
+              if (newIndex > oldIndex) newIndex--;
+              final item = _coreItems.removeAt(oldIndex);
+              _coreItems.insert(newIndex, item);
+
+              // Boundary after remove shifts if the removed item was visible
+              final boundary = wasVisible
+                  ? (oldVisibleCount - 1)
+                  : oldVisibleCount;
+
+              int newVisibleCount = oldVisibleCount;
+              if (!wasVisible && newIndex < boundary) {
+                // Hidden → dragged into visible zone
+                newVisibleCount = oldVisibleCount + 1;
+              } else if (wasVisible && newIndex >= boundary) {
+                // Visible → dragged into hidden zone
+                newVisibleCount = oldVisibleCount - 1;
+              }
+
+              _coreItems = _coreItems.asMap().entries.map((e) {
+                return MapEntry(e.value.key, e.key < newVisibleCount);
+              }).toList();
             });
             saveCoreNumbersConfig(_coreItems);
           },
-        );
-      },
+          itemBuilder: (context, index) {
+            final entry = _coreItems[index];
+            final key = entry.key;
+            final visible = entry.value;
+            final vc = _coreItems.where((e) => e.value).length;
+
+            return Column(
+              key: ValueKey(key),
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Render hidden zone header above the first hidden item
+                if (index == vc)
+                  _zoneHeader(l10n.hidden, Icons.visibility_off, Theme.of(context).colorScheme.onSurfaceVariant),
+                ListTile(
+                  leading: Icon(
+                    coreKeyIcon(key),
+                    color: visible
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).disabledColor,
+                  ),
+                  title: Text(
+                    coreKeyLabel(key, l10n),
+                    style: TextStyle(
+                      color: visible ? null : Theme.of(context).disabledColor,
+                      decoration: visible ? null : TextDecoration.lineThrough,
+                    ),
+                  ),
+                  trailing: Icon(
+                    Icons.drag_handle,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                  onTap: () => _toggleCoreItem(key, visible),
+                ),
+              ],
+            );
+          },
+        ),
+
+        // When all items are visible, show the hidden header below the list
+        if (currentVisibleCount == _coreItems.length)
+          _zoneHeader(l10n.hidden, Icons.visibility_off, Theme.of(context).colorScheme.onSurfaceVariant),
+      ],
     );
+  }
+
+  Widget _zoneHeader(String label, IconData icon, Color color) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Row(
+        children: [
+          const Expanded(child: Divider()),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 14, color: color),
+                const SizedBox(width: 6),
+                Text(label, style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w500)),
+              ],
+            ),
+          ),
+          const Expanded(child: Divider()),
+        ],
+      ),
+    );
+  }
+
+  void _toggleCoreItem(String key, bool currentlyVisible) {
+    setState(() {
+      final visibleItems = _coreItems.where((e) => e.value).toList();
+      final hiddenItems = _coreItems.where((e) => !e.value).toList();
+
+      if (currentlyVisible) {
+        visibleItems.removeWhere((e) => e.key == key);
+        hiddenItems.insert(0, MapEntry(key, false));
+      } else {
+        hiddenItems.removeWhere((e) => e.key == key);
+        visibleItems.add(MapEntry(key, true));
+      }
+
+      _coreItems = [...visibleItems, ...hiddenItems];
+    });
+    saveCoreNumbersConfig(_coreItems);
   }
 }

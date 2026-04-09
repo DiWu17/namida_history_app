@@ -14,6 +14,11 @@
   "clearPath": "清除路径",
   "done": "完成",
   "extractingMessage": "正在解压与分析…\\n这可能需要一些时间。",
+  "progressExtracting": "正在解压文件… ({current}/{total})",
+  "@progressExtracting": {"placeholders": {"current": {"type": "int"}, "total": {"type": "int"}}},
+  "progressScanning": "正在扫描本地音乐文件…",
+  "progressAnalyzing": "正在分析数据与生成报告…",
+  "progressCleanup": "正在清理临时文件…",
   "analysisComplete": "分析完成！",
   "errorTitle": "错误",
   "ok": "确定",
@@ -111,7 +116,7 @@
   "settingsDisplaySection": "显示设置",
   "settingsPathSection": "路径设置",
   "settingsGeneralSection": "通用设置",
-  "dragToReorder": "长按拖动排序，点击切换显示/隐藏",
+  "dragToReorder": "拖动到上半部分显示，下半部分隐藏，点击切换",
   "visible": "显示",
   "hidden": "隐藏"
 }

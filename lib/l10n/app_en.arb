@@ -20,6 +20,11 @@
   "clearPath": "Clear path",
   "done": "Done",
   "extractingMessage": "Extracting and analyzing...\\nThis may take a moment.",
+  "progressExtracting": "Extracting files… ({current}/{total})",
+  "@progressExtracting": {"placeholders": {"current": {"type": "int"}, "total": {"type": "int"}}},
+  "progressScanning": "Scanning local music files…",
+  "progressAnalyzing": "Analyzing data & generating report…",
+  "progressCleanup": "Cleaning up temporary files…",
   "analysisComplete": "Analysis complete!",
   "errorTitle": "Error",
   "ok": "OK",
@@ -117,7 +122,7 @@
   "settingsDisplaySection": "Display Settings",
   "settingsPathSection": "Path Settings",
   "settingsGeneralSection": "General Settings",
-  "dragToReorder": "Long press to drag and reorder, tap to toggle visibility",
+  "dragToReorder": "Drag to upper half to show, lower half to hide. Tap to toggle",
   "visible": "Visible",
   "hidden": "Hidden"
 }
