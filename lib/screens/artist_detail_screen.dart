@@ -127,9 +127,13 @@ class ArtistDetailScreen extends StatelessWidget {
                     final entry = entries[index];
                     final rank = index + 1;
                     Color rankColor = Theme.of(context).colorScheme.onSurfaceVariant;
-                    if (rank == 1) rankColor = Colors.amber;
-                    else if (rank == 2) rankColor = Colors.grey.shade400;
-                    else if (rank == 3) rankColor = Colors.brown.shade300;
+                    if (rank == 1) {
+                      rankColor = Colors.amber;
+                    } else if (rank == 2) {
+                      rankColor = Colors.grey.shade400;
+                    } else if (rank == 3) {
+                      rankColor = Colors.brown.shade300;
+                    }
 
                     return ListTile(
                       onTap: () {

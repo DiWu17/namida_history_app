@@ -953,10 +953,15 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
           final entry = displayEntries[index];
           final rank = index + 1;
           Color rankColor;
-          if (rank == 1) rankColor = Colors.amber;
-          else if (rank == 2) rankColor = Colors.grey.shade400;
-          else if (rank == 3) rankColor = Colors.brown.shade300;
-          else rankColor = Theme.of(context).colorScheme.onSurfaceVariant;
+          if (rank == 1) {
+            rankColor = Colors.amber;
+          } else if (rank == 2) {
+            rankColor = Colors.grey.shade400;
+          } else if (rank == 3) {
+            rankColor = Colors.brown.shade300;
+          } else {
+            rankColor = Theme.of(context).colorScheme.onSurfaceVariant;
+          }
 
           return ListTile(
             onTap: type != 'none' ? () {
