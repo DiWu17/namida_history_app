@@ -68,7 +68,7 @@ jobs:
           echo "storeFile=keystore.jks" >> android/key.properties
 
       - name: Build APK (arm64)
-        run: flutter build apk --target-platform android-arm64 --release
+        run: flutter build apk --target-platform android-arm64 --split-per-abi --release
 
       - name: Rename APK
         run: |
