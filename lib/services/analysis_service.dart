@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:metadata_audio/metadata_audio.dart';
 import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import 'package:sqlite3/sqlite3.dart' as sqlite;
 
 import 'config_service.dart';
@@ -13,6 +14,8 @@ import 'config_service.dart';
 class AnalysisService {
   static final Map<String, String> _resolvedTrackPathCache = {};
   static final Set<String> _missingTrackPathCache = {};
+  static Future<void>? _pathCacheLoadFuture;
+  static File? _pathCacheFile;
   final Map<String, Map<String, dynamic>> _backupTrackMetadataByPath = {};
   final Map<String, Map<String, dynamic>> _backupTrackMetadataByBase = {};
   final Map<String, Map<String, dynamic>> _backupTrackStatsByPath = {};
@@ -914,6 +917,8 @@ class AnalysisService {
     required String sourcePath,
     String? localPath,
   }) async {
+    await _ensurePathCacheLoadedAsync();
+
     final directPath = localPath?.trim() ?? '';
     if (directPath.isNotEmpty && File(directPath).existsSync()) {
       return directPath;
@@ -932,6 +937,10 @@ class AnalysisService {
     if (cached != null && cached.isNotEmpty && File(cached).existsSync()) {
       return cached;
     }
+    if (cached != null && cached.isNotEmpty) {
+      _resolvedTrackPathCache.remove(cacheKey);
+      await _savePathCacheAsync();
+    }
 
     final remapped = _remapTrackPathSync(
       originalPath,
@@ -939,7 +948,7 @@ class AnalysisService {
       musicDir: _musicDirectory,
     );
     if (remapped.isNotEmpty) {
-      _cacheResolvedTrackPath(cacheKey, remapped);
+      await _cacheResolvedTrackPathAsync(cacheKey, remapped);
       return remapped;
     }
 
@@ -949,11 +958,12 @@ class AnalysisService {
 
     final searched = await _searchTrackPathAsync(originalPath, _musicDirectory);
     if (searched.isNotEmpty) {
-      _cacheResolvedTrackPath(cacheKey, searched);
+      await _cacheResolvedTrackPathAsync(cacheKey, searched);
       return searched;
     }
 
     _missingTrackPathCache.add(cacheKey);
+    await _savePathCacheAsync();
     return '';
   }
 
@@ -1097,9 +1107,75 @@ class AnalysisService {
     return s;
   }
 
-  static void _cacheResolvedTrackPath(String cacheKey, String resolvedPath) {
+  static Future<void> _cacheResolvedTrackPathAsync(String cacheKey, String resolvedPath) async {
     _missingTrackPathCache.remove(cacheKey);
     _resolvedTrackPathCache[cacheKey] = resolvedPath;
+    await _savePathCacheAsync();
+  }
+
+  static Future<void> _ensurePathCacheLoadedAsync() async {
+    _pathCacheLoadFuture ??= _loadPathCacheAsync();
+    await _pathCacheLoadFuture;
+  }
+
+  static Future<void> _loadPathCacheAsync() async {
+    try {
+      final dir = await getApplicationSupportDirectory();
+      _pathCacheFile = File(p.join(dir.path, 'track_path_cache.json'));
+      if (!await _pathCacheFile!.exists()) {
+        return;
+      }
+
+      final content = await _pathCacheFile!.readAsString();
+      if (content.trim().isEmpty) {
+        return;
+      }
+
+      final decoded = jsonDecode(content);
+      if (decoded is! Map<String, dynamic>) {
+        return;
+      }
+
+      final resolved = decoded['resolved'];
+      if (resolved is Map) {
+        for (final entry in resolved.entries) {
+          final cacheKey = entry.key.toString();
+          final path = entry.value?.toString() ?? '';
+          if (path.isNotEmpty) {
+            _resolvedTrackPathCache[cacheKey] = path;
+          }
+        }
+      }
+
+      final missing = decoded['missing'];
+      if (missing is List) {
+        for (final entry in missing) {
+          final cacheKey = entry?.toString() ?? '';
+          if (cacheKey.isNotEmpty) {
+            _missingTrackPathCache.add(cacheKey);
+          }
+        }
+      }
+    } catch (_) {
+      _resolvedTrackPathCache.clear();
+      _missingTrackPathCache.clear();
+    }
+  }
+
+  static Future<void> _savePathCacheAsync() async {
+    try {
+      final file = _pathCacheFile ??= File(
+        p.join((await getApplicationSupportDirectory()).path, 'track_path_cache.json'),
+      );
+      final payload = {
+        'version': 1,
+        'resolved': _resolvedTrackPathCache,
+        'missing': _missingTrackPathCache.toList(growable: false),
+      };
+      await file.writeAsString(jsonEncode(payload));
+    } catch (_) {
+      // Ignore cache persistence failures.
+    }
   }
 
   static String _buildPathCacheKey(String sourcePath, String? musicDir) {
