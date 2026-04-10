@@ -18,7 +18,7 @@
   "themeModeLight": "Light",
   "themeModeDark": "Dark",
   "themeModeSystem": "Follow System",
-  "chooseBackupZip": "Choose a Namida Backup ZIP file to begin",
+  "chooseBackupZip": "Choose Namida Backup ZIP files (multiple selection allowed)",
   "allTime": "All Time",
   "chooseMusicFolder": "Select Music Folder",
   "clearPath": "Clear path",

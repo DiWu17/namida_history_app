@@ -48,7 +48,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get themeModeSystem => '跟随系统';
 
   @override
-  String get chooseBackupZip => '请选择 Namida 备份 ZIP 文件以开始';
+  String get chooseBackupZip => '请选择 Namida 备份 ZIP 文件 (可多选)';
 
   @override
   String get allTime => '所有时间';

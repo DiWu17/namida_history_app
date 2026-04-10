@@ -12,7 +12,7 @@
   "themeModeLight": "浅色",
   "themeModeDark": "深色",
   "themeModeSystem": "跟随系统",
-  "chooseBackupZip": "请选择 Namida 备份 ZIP 文件以开始",
+  "chooseBackupZip": "请选择 Namida 备份 ZIP 文件 (可多选)",
   "allTime": "所有时间",
   "chooseMusicFolder": "选择音乐文件夹",
   "clearPath": "清除路径",

@@ -49,7 +49,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get themeModeSystem => 'Follow System';
 
   @override
-  String get chooseBackupZip => 'Choose a Namida Backup ZIP file to begin';
+  String get chooseBackupZip => 'Choose Namida Backup ZIP files (multiple selection allowed)';
 
   @override
   String get allTime => 'All Time';
