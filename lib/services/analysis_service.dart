@@ -16,6 +16,7 @@ class AnalysisService {
   static final Set<String> _missingTrackPathCache = {};
   static Future<void>? _pathCacheLoadFuture;
   static File? _pathCacheFile;
+  static bool? _ffmpegAvailable;
   final Map<String, Map<String, dynamic>> _backupTrackMetadataByPath = {};
   final Map<String, Map<String, dynamic>> _backupTrackMetadataByBase = {};
   final Map<String, Map<String, dynamic>> _backupTrackStatsByPath = {};
@@ -734,6 +735,7 @@ class AnalysisService {
         'localPath': representative['localPath']?.toString() ?? '',
         'track_base': representative['track_base']?.toString() ?? '',
         'album': representative['album']?.toString() ?? '',
+        'cover_candidates': _collectCoverCandidates(aRecords),
       };
     }
 
@@ -765,6 +767,7 @@ class AnalysisService {
         'localPath': representative['localPath']?.toString() ?? '',
         'track_base': representative['track_base']?.toString() ?? '',
         'album': alName,
+        'cover_candidates': _collectCoverCandidates(alRecords),
       };
     }
 
@@ -975,22 +978,100 @@ class AnalysisService {
       return existingCover;
     }
 
-    final localPath = await resolveLocalPathForDetailsAsync(details);
+    final coverPath = await _extractCoverFromCandidateAsync(details);
+    if (coverPath.isNotEmpty) {
+      details['cover'] = coverPath;
+      return coverPath;
+    }
+
+    final rawCandidates = details['cover_candidates'];
+    if (rawCandidates is List) {
+      for (final candidate in rawCandidates) {
+        if (candidate is! Map) continue;
+        final coverPath = await _extractCoverFromCandidateAsync(
+          Map<dynamic, dynamic>.from(candidate),
+        );
+        if (coverPath.isEmpty) {
+          continue;
+        }
+        details['cover'] = coverPath;
+        final resolvedLocalPath = candidate['localPath']?.toString() ?? '';
+        if (resolvedLocalPath.isNotEmpty) {
+          details['localPath'] = resolvedLocalPath;
+        }
+        return coverPath;
+      }
+    }
+
+    return '';
+  }
+
+  Future<String> _extractCoverFromCandidateAsync(
+    Map<dynamic, dynamic> candidate,
+  ) async {
+    final localPath = await resolveTrackFilePathAsync(
+      sourcePath: candidate['sourcePath']?.toString() ?? '',
+      localPath: candidate['localPath']?.toString() ?? '',
+    );
     if (localPath.isEmpty) {
       return '';
     }
 
-    final trackBase = details['track_base']?.toString();
-    final album = details['album']?.toString();
-    final coverPath = await extractCoverFromAudioFileAsync(
+    candidate['localPath'] = localPath;
+    final trackBase = candidate['track_base']?.toString();
+    final album = candidate['album']?.toString();
+    return extractCoverFromAudioFileAsync(
       localPath,
       trackBase?.isNotEmpty == true ? trackBase : null,
       album?.isNotEmpty == true ? album : null,
     );
-    if (coverPath.isNotEmpty) {
-      details['cover'] = coverPath;
+  }
+
+  List<Map<String, String>> _collectCoverCandidates(
+    List<Map<String, dynamic>> records, {
+    int maxCount = 12,
+  }) {
+    final candidates = <Map<String, String>>[];
+    final seen = <String>{};
+
+    void addFromRecord(Map<String, dynamic> record) {
+      final sourcePath = record['sourcePath']?.toString() ?? '';
+      final localPath = record['localPath']?.toString() ?? '';
+      final trackBase = record['track_base']?.toString() ?? '';
+      if (sourcePath.isEmpty && localPath.isEmpty && trackBase.isEmpty) {
+        return;
+      }
+      final identity = trackBase.isNotEmpty
+          ? trackBase.toLowerCase()
+          : _normalizeTrackPath(sourcePath.isNotEmpty ? sourcePath : localPath);
+      if (identity.isEmpty || !seen.add(identity)) {
+        return;
+      }
+      candidates.add({
+        'sourcePath': sourcePath,
+        'localPath': localPath,
+        'track_base': trackBase,
+        'album': record['album']?.toString() ?? '',
+      });
     }
-    return coverPath;
+
+    for (final record in records) {
+      final localPath = record['localPath']?.toString() ?? '';
+      if (localPath.isNotEmpty && File(localPath).existsSync()) {
+        addFromRecord(record);
+        if (candidates.length >= maxCount) {
+          return candidates;
+        }
+      }
+    }
+
+    for (final record in records) {
+      addFromRecord(record);
+      if (candidates.length >= maxCount) {
+        break;
+      }
+    }
+    return candidates;
   }
 
   String? _firstNonEmpty(List<dynamic> values) {
@@ -1093,12 +1174,107 @@ class AnalysisService {
       final cover = selectCover(common.picture);
       if (cover != null && cover.data.length >= 100) {
         _saveCover(cover.data, baseName ?? '', album);
-        return baseName != null && _trackCovers.containsKey(baseName)
-            ? _trackCovers[baseName]!
-            : '';
+        if (baseName != null &&
+            baseName.isNotEmpty &&
+            _trackCovers.containsKey(baseName)) {
+          return _trackCovers[baseName]!;
+        }
+        if (album != null &&
+            album.isNotEmpty &&
+            _albumCovers.containsKey(album)) {
+          return _albumCovers[album]!;
+        }
       }
     } catch (_) {}
+
+    final ffmpegCover = await _extractCoverUsingFfmpegAsync(
+      filePath,
+      baseName,
+      album,
+    );
+    if (ffmpegCover.isNotEmpty) {
+      return ffmpegCover;
+    }
+
     return '';
+  }
+
+  Future<String> _extractCoverUsingFfmpegAsync(
+    String filePath,
+    String? baseName,
+    String? album,
+  ) async {
+    if (!await _isFfmpegAvailableAsync()) {
+      return '';
+    }
+
+    final tempBase = baseName?.isNotEmpty == true
+        ? _sanitizeFilename(baseName!)
+        : _sanitizeFilename(p.basenameWithoutExtension(filePath));
+    final outPath = p.join(_coversDir, 'ffmpeg_$tempBase.jpg');
+
+    try {
+      final result = await Process.run(
+        'ffmpeg',
+        [
+          '-y',
+          '-loglevel',
+          'error',
+          '-i',
+          filePath,
+          '-map',
+          '0:v:0',
+          '-frames:v',
+          '1',
+          outPath,
+        ],
+      );
+      if (result.exitCode != 0) {
+        return '';
+      }
+
+      final outFile = File(outPath);
+      if (!outFile.existsSync()) {
+        return '';
+      }
+
+      final bytes = await outFile.readAsBytes();
+      if (bytes.length < 100) {
+        return '';
+      }
+
+      _saveCover(bytes, baseName ?? tempBase, album);
+      if (baseName != null &&
+          baseName.isNotEmpty &&
+          _trackCovers.containsKey(baseName)) {
+        return _trackCovers[baseName]!;
+      }
+      if (album != null &&
+          album.isNotEmpty &&
+          _albumCovers.containsKey(album)) {
+        return _albumCovers[album]!;
+      }
+      if (_trackCovers.containsKey(tempBase)) {
+        return _trackCovers[tempBase]!;
+      }
+    } catch (_) {
+      return '';
+    }
+
+    return '';
+  }
+
+  static Future<bool> _isFfmpegAvailableAsync() async {
+    if (_ffmpegAvailable != null) {
+      return _ffmpegAvailable!;
+    }
+    try {
+      final result = await Process.run('ffmpeg', ['-version']);
+      _ffmpegAvailable = result.exitCode == 0;
+    } catch (_) {
+      _ffmpegAvailable = false;
+    }
+    return _ffmpegAvailable!;
   }
 
   String _sanitizeFilename(String name) {
