@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
@@ -116,12 +119,16 @@ class MyApp extends StatelessWidget {
           darkTheme: _buildTheme(Brightness.dark),
           themeMode: themeProvider.themeMode,
           builder: (context, child) {
-            return MediaQuery(
+            Widget result = MediaQuery(
               data: MediaQuery.of(context).copyWith(
                 textScaler: TextScaler.linear(themeProvider.fontScale),
               ),
               child: child!,
             );
+            if (!kIsWeb && Platform.isWindows) {
+              result = ExcludeSemantics(child: result);
+            }
+            return result;
           },
           home: const AnalyzerHome(),
         );
