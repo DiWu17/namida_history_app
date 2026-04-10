@@ -167,6 +167,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _buildThemeModeTile(l10n),
           _buildLanguageTile(l10n),
           _buildMonthFormatTile(l10n),
+          _buildFontSizeTile(l10n),
 
           // -- Path Settings --
           _sectionHeader(l10n.settingsPathSection),
@@ -300,6 +301,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ConfigService().set('month_format', val);
           }
         },
+      ),
+    );
+  }
+
+  // --- Font Size ---
+  Widget _buildFontSizeTile(AppLocalizations l10n) {
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final scale = themeProvider.fontScale;
+    return ListTile(
+      leading: const Icon(Icons.format_size_rounded),
+      title: Text(l10n.settingsFontSize),
+      subtitle: Slider(
+        value: scale,
+        min: 0.8,
+        max: 1.5,
+        divisions: 14,
+        label: l10n.settingsFontSizeValue((scale * 100).round()),
+        onChanged: (v) {
+          themeProvider.setFontScale(v);
+          setState(() {});
+        },
+      ),
+      trailing: Text(
+        l10n.settingsFontSizeValue((scale * 100).round()),
+        style: const TextStyle(fontWeight: FontWeight.bold),
       ),
     );
   }

@@ -361,4 +361,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get hidden => '隐藏';
+
+  @override
+  String get settingsFontSize => '字体大小';
+
+  @override
+  String settingsFontSizeValue(int percent) {
+    return '$percent%';
+  }
 }

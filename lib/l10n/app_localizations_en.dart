@@ -49,7 +49,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get themeModeSystem => 'Follow System';
 
   @override
-  String get chooseBackupZip => 'Choose Namida Backup ZIP files (multiple selection allowed)';
+  String get chooseBackupZip =>
+      'Choose Namida Backup ZIP files (multiple selection allowed)';
 
   @override
   String get allTime => 'All Time';
@@ -367,4 +368,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get hidden => 'Hidden';
+
+  @override
+  String get settingsFontSize => 'Font Size';
+
+  @override
+  String settingsFontSizeValue(int percent) {
+    return '$percent%';
+  }
 }

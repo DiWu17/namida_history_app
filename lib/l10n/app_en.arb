@@ -129,5 +129,8 @@
   "settingsGeneralSection": "General Settings",
   "dragToReorder": "Drag to upper half to show, lower half to hide. Tap to toggle",
   "visible": "Visible",
-  "hidden": "Hidden"
+  "hidden": "Hidden",
+  "settingsFontSize": "Font Size",
+  "settingsFontSizeValue": "{percent}%",
+  "@settingsFontSizeValue": {"placeholders": {"percent": {"type": "int"}}}
 }

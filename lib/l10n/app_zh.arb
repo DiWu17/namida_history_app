@@ -123,5 +123,8 @@
   "settingsGeneralSection": "通用设置",
   "dragToReorder": "拖动到上半部分显示，下半部分隐藏，点击切换",
   "visible": "显示",
-  "hidden": "隐藏"
+  "hidden": "隐藏",
+  "settingsFontSize": "字体大小",
+  "settingsFontSizeValue": "{percent}%",
+  "@settingsFontSizeValue": {"placeholders": {"percent": {"type": "int"}}}
 }

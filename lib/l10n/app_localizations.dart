@@ -179,7 +179,7 @@ abstract class AppLocalizations {
   /// No description provided for @chooseBackupZip.
   ///
   /// In en, this message translates to:
-  /// **'Choose a Namida Backup ZIP file to begin'**
+  /// **'Choose Namida Backup ZIP files (multiple selection allowed)'**
   String get chooseBackupZip;
 
   /// No description provided for @allTime.
@@ -769,6 +769,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Hidden'**
   String get hidden;
+
+  /// No description provided for @settingsFontSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Font Size'**
+  String get settingsFontSize;
+
+  /// No description provided for @settingsFontSizeValue.
+  ///
+  /// In en, this message translates to:
+  /// **'{percent}%'**
+  String settingsFontSizeValue(int percent);
 }
 
 class _AppLocalizationsDelegate
