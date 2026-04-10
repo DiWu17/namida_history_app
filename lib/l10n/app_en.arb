@@ -132,5 +132,7 @@
   "hidden": "Hidden",
   "settingsFontSize": "Font Size",
   "settingsFontSizeValue": "{percent}%",
-  "@settingsFontSizeValue": {"placeholders": {"percent": {"type": "int"}}}
+  "@settingsFontSizeValue": {"placeholders": {"percent": {"type": "int"}}},
+  "monthlyRanking": "Ranking",
+  "monthlyUniqueTracks": "tracks"
 }

@@ -581,11 +581,13 @@ class AnalysisService {
       }
     }
     final monthlyTopSong = <String, String>{};
+    final monthlyRankings = <String, Map<String, int>>{};
     for (final e in monthlyGroups.entries) {
       final c = _countValues(e.value, 'title');
       if (c.isNotEmpty) {
         monthlyTopSong[e.key] =
             c.entries.reduce((a, b) => a.value > b.value ? a : b).key;
+        monthlyRankings[e.key] = _topN(c, 100);
       }
     }
 
@@ -822,6 +824,7 @@ class AnalysisService {
       'top_artists': topArtists,
       'top_albums': topAlbums,
       'monthly_top_song': monthlyTopSong,
+      'monthly_rankings': monthlyRankings,
       'listening_periods': listeningPeriods,
       'weekly_pattern': weeklyPattern,
       'single_day_repeat_max': singleDayRepeatMax,

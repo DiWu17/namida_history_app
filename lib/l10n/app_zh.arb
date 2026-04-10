@@ -126,5 +126,7 @@
   "hidden": "隐藏",
   "settingsFontSize": "字体大小",
   "settingsFontSizeValue": "{percent}%",
-  "@settingsFontSizeValue": {"placeholders": {"percent": {"type": "int"}}}
+  "@settingsFontSizeValue": {"placeholders": {"percent": {"type": "int"}}},
+  "monthlyRanking": "榜单",
+  "monthlyUniqueTracks": "首歌曲"
 }

@@ -9,6 +9,7 @@ import '../screens/track_detail_screen.dart';
 import '../screens/artist_detail_screen.dart';
 import '../screens/album_detail_screen.dart';
 import '../screens/monthly_top_song_screen.dart';
+import '../screens/monthly_detail_screen.dart';
 
 class TopListSection extends StatelessWidget {
   final String title;
@@ -190,6 +191,7 @@ String formatMonthStr(String monthStr) {
 
 class MonthlyTopSongPreview extends StatelessWidget {
   final Map<dynamic, dynamic> data;
+  final Map<dynamic, dynamic>? monthlyRankings;
   final Map<dynamic, dynamic>? trackDetails;
   final Map<dynamic, dynamic>? allTrackCompact;
   final int maxPreview;
@@ -197,6 +199,7 @@ class MonthlyTopSongPreview extends StatelessWidget {
   const MonthlyTopSongPreview({
     super.key,
     required this.data,
+    this.monthlyRankings,
     this.trackDetails,
     this.allTrackCompact,
     this.maxPreview = 10,
@@ -218,7 +221,7 @@ class MonthlyTopSongPreview extends StatelessWidget {
             if (needsTruncation)
               TextButton(
                 onPressed: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (ctx) => MonthlyTopSongFullScreen(data: data, trackDetails: trackDetails, allTrackCompact: allTrackCompact)));
+                  Navigator.push(context, MaterialPageRoute(builder: (ctx) => MonthlyTopSongFullScreen(data: data, monthlyRankings: monthlyRankings, trackDetails: trackDetails, allTrackCompact: allTrackCompact)));
                 },
                 child: Text(AppLocalizations.of(context)!.viewFullList, style: const TextStyle(fontWeight: FontWeight.bold)),
               ),
@@ -246,11 +249,15 @@ class MonthlyTopSongPreview extends StatelessWidget {
               final trackName = data[key].toString();
               return ListTile(
                 onTap: () {
-                  final details = resolveTrackDetail(trackName, trackDetails, allTrackCompact);
-                  if (details != null) {
-                    Navigator.push(context, MaterialPageRoute(builder: (ctx) => TrackDetailScreen(trackName: trackName, details: details)));
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLocalizations.of(context)!.noTrackDetails)));
+                  final rankings = monthlyRankings?[key];
+                  if (rankings != null && rankings is Map) {
+                    Navigator.push(context, MaterialPageRoute(builder: (ctx) => MonthlyDetailScreen(
+                      monthKey: key.toString(),
+                      topSong: trackName,
+                      rankings: Map<String, int>.from(rankings),
+                      trackDetails: trackDetails,
+                      allTrackCompact: allTrackCompact,
+                    )));
                   }
                 },
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),

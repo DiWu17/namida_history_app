@@ -781,6 +781,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{percent}%'**
   String settingsFontSizeValue(int percent);
+
+  /// No description provided for @monthlyRanking.
+  ///
+  /// In en, this message translates to:
+  /// **'Ranking'**
+  String get monthlyRanking;
+
+  /// No description provided for @monthlyUniqueTracks.
+  ///
+  /// In en, this message translates to:
+  /// **'tracks'**
+  String get monthlyUniqueTracks;
 }
 
 class _AppLocalizationsDelegate

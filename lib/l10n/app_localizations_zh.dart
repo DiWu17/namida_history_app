@@ -369,4 +369,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String settingsFontSizeValue(int percent) {
     return '$percent%';
   }
+
+  @override
+  String get monthlyRanking => '榜单';
+
+  @override
+  String get monthlyUniqueTracks => '首歌曲';
 }

@@ -376,4 +376,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String settingsFontSizeValue(int percent) {
     return '$percent%';
   }
+
+  @override
+  String get monthlyRanking => 'Ranking';
+
+  @override
+  String get monthlyUniqueTracks => 'tracks';
 }

@@ -341,7 +341,7 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
               if (summary['top_albums'] != null && (summary['top_albums'] as Map).isNotEmpty)
                 TopListSection(title: l10n.annualTopAlbums(topAlbumsCount), data: summary['top_albums'], icon: Icons.album, iconColor: Colors.deepOrange, type: 'album', detailsMap: summary['album_details'], trackDetailsMap: summary['track_details'], allTrackCompact: summary['all_track_compact'], maxItems: topAlbumsCount),
               if (summary['monthly_top_song'] != null && (summary['monthly_top_song'] as Map).isNotEmpty)
-                MonthlyTopSongPreview(data: summary['monthly_top_song'], trackDetails: summary['track_details'], allTrackCompact: summary['all_track_compact'], maxPreview: monthlyPreviewCount),
+                MonthlyTopSongPreview(data: summary['monthly_top_song'], monthlyRankings: summary['monthly_rankings'], trackDetails: summary['track_details'], allTrackCompact: summary['all_track_compact'], maxPreview: monthlyPreviewCount),
             ],
           ),
         ),

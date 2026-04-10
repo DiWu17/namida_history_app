@@ -2,16 +2,18 @@ import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
 import '../services/track_detail_resolver.dart';
 import '../widgets/top_list_section.dart';
-import 'track_detail_screen.dart';
+import 'monthly_detail_screen.dart';
 
 class MonthlyTopSongFullScreen extends StatelessWidget {
   final Map<dynamic, dynamic> data;
+  final Map<dynamic, dynamic>? monthlyRankings;
   final Map<dynamic, dynamic>? trackDetails;
   final Map<dynamic, dynamic>? allTrackCompact;
 
   const MonthlyTopSongFullScreen({
     super.key,
     required this.data,
+    this.monthlyRankings,
     this.trackDetails,
     this.allTrackCompact,
   });
@@ -42,11 +44,15 @@ class MonthlyTopSongFullScreen extends StatelessWidget {
           final trackName = data[key].toString();
           return ListTile(
             onTap: () {
-              final details = resolveTrackDetail(trackName, trackDetails, allTrackCompact);
-              if (details != null) {
-                Navigator.push(context, MaterialPageRoute(builder: (ctx) => TrackDetailScreen(trackName: trackName, details: details)));
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.noTrackDetails)));
+              final rankings = monthlyRankings?[key];
+              if (rankings != null && rankings is Map) {
+                Navigator.push(context, MaterialPageRoute(builder: (ctx) => MonthlyDetailScreen(
+                  monthKey: key.toString(),
+                  topSong: trackName,
+                  rankings: Map<String, int>.from(rankings),
+                  trackDetails: trackDetails,
+                  allTrackCompact: allTrackCompact,
+                )));
               }
             },
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
