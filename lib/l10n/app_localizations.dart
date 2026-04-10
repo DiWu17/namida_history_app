@@ -119,7 +119,7 @@ abstract class AppLocalizations {
   /// No description provided for @optionalPath.
   ///
   /// In en, this message translates to:
-  /// **'Optional Path'**
+  /// **'Local Music Folder'**
   String get optionalPath;
 
   /// No description provided for @metadataExtraction.

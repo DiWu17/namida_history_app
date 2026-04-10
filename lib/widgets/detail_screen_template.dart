@@ -1,11 +1,12 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
+import '../services/analysis_service.dart';
 import 'app_styles.dart';
 import 'interactive_line_chart.dart';
 import 'time_row.dart';
 
-class DetailScreenTemplate extends StatelessWidget {
+class DetailScreenTemplate extends StatefulWidget {
   final String title;
   final Map<dynamic, dynamic> details;
   final IconData fallbackIcon;
@@ -26,12 +27,45 @@ class DetailScreenTemplate extends StatelessWidget {
   });
 
   @override
+  State<DetailScreenTemplate> createState() => _DetailScreenTemplateState();
+}
+
+class _DetailScreenTemplateState extends State<DetailScreenTemplate> {
+  String _dynamicCoverPath = '';
+  bool _isLoadingCover = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCoverAsync();
+  }
+
+  Future<void> _loadCoverAsync() async {
+    if (_isLoadingCover) return;
+    setState(() => _isLoadingCover = true);
+    try {
+      final coverPath = await AnalysisService().extractCoverForDetailsAsync(widget.details);
+      if (mounted && coverPath.isNotEmpty) {
+        setState(() => _dynamicCoverPath = coverPath);
+      }
+    } catch (_) {
+      // Ignore extraction errors
+    } finally {
+      if (mounted) {
+        setState(() => _isLoadingCover = false);
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final int totalPlays = details['total_plays'] ?? 0;
-    final String coverPath = details['cover']?.toString() ?? '';
+    final int totalPlays = widget.details['total_plays'] ?? 0;
+    final String coverPath = _dynamicCoverPath.isNotEmpty
+        ? _dynamicCoverPath
+        : widget.details['cover']?.toString() ?? '';
     final bool hasCover = coverPath.isNotEmpty && File(coverPath).existsSync();
     final l10n = AppLocalizations.of(context)!;
-    final hasExtraSections = extraSections.isNotEmpty;
+    final hasExtraSections = widget.extraSections.isNotEmpty;
 
     final tabs = <Widget>[
       Tab(icon: const Icon(Icons.info_outline_rounded), text: l10n.tabOverview),
@@ -44,12 +78,12 @@ class DetailScreenTemplate extends StatelessWidget {
       length: tabs.length,
       child: Scaffold(
         appBar: AppBar(
-          title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+          title: Text(widget.title, style: const TextStyle(fontWeight: FontWeight.w700)),
           surfaceTintColor: Colors.transparent,
           scrolledUnderElevation: 0,
-          actions: actions,
+          actions: widget.actions,
         ),
-        floatingActionButton: floatingActionButton,
+        floatingActionButton: widget.floatingActionButton,
         body: Column(
           children: [
             // Compact header
@@ -81,7 +115,7 @@ class DetailScreenTemplate extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          title,
+                          widget.title,
                           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
@@ -91,13 +125,13 @@ class DetailScreenTemplate extends StatelessWidget {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                             decoration: BoxDecoration(
-                              color: accentColor.withAlpha(30),
+                              color: widget.accentColor.withAlpha(30),
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: accentColor.withAlpha(50)),
+                              border: Border.all(color: widget.accentColor.withAlpha(50)),
                             ),
                             child: Text(
                               '$totalPlays ${l10n.playsSuffix}',
-                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: accentColor),
+                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: widget.accentColor),
                             ),
                           ),
                         ],
@@ -112,8 +146,8 @@ class DetailScreenTemplate extends StatelessWidget {
               color: Theme.of(context).colorScheme.surface,
               child: TabBar(
                 tabs: tabs,
-                labelColor: accentColor,
-                indicatorColor: accentColor,
+                labelColor: widget.accentColor,
+                indicatorColor: widget.accentColor,
                 unselectedLabelColor: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
@@ -137,9 +171,9 @@ class DetailScreenTemplate extends StatelessWidget {
                             padding: const EdgeInsets.all(16.0),
                             child: Column(
                               children: [
-                                TimeRow(label: l10n.firstPlayLabel, time: details['first_play']?.toString() ?? l10n.unknownLabel, icon: Icons.fiber_new_rounded, color: Colors.green),
+                                TimeRow(label: l10n.firstPlayLabel, time: widget.details['first_play']?.toString() ?? l10n.unknownLabel, icon: Icons.fiber_new_rounded, color: Colors.green),
                                 const Divider(height: 24),
-                                TimeRow(label: l10n.lastPlayLabel, time: details['last_play']?.toString() ?? l10n.unknownLabel, icon: Icons.update_rounded, color: Colors.orange),
+                                TimeRow(label: l10n.lastPlayLabel, time: widget.details['last_play']?.toString() ?? l10n.unknownLabel, icon: Icons.update_rounded, color: Colors.orange),
                               ],
                             ),
                           ),
@@ -153,7 +187,7 @@ class DetailScreenTemplate extends StatelessWidget {
                       padding: const EdgeInsets.all(24),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: extraSections,
+                        children: widget.extraSections,
                       ),
                     ),
                   // Trend tab
@@ -168,7 +202,7 @@ class DetailScreenTemplate extends StatelessWidget {
                           child: Container(
                             padding: const EdgeInsets.all(20.0),
                             decoration: namidaCardDecoration(context, borderRadius: 16),
-                            child: InteractiveLineChart(historyData: details['history'] ?? {}),
+                            child: InteractiveLineChart(historyData: widget.details['history'] ?? {}),
                           ),
                         ),
                       ],
@@ -188,10 +222,10 @@ class DetailScreenTemplate extends StatelessWidget {
       width: 72,
       height: 72,
       decoration: BoxDecoration(
-        color: accentColor.withAlpha(25),
+        color: widget.accentColor.withAlpha(25),
         borderRadius: BorderRadius.circular(10),
       ),
-      child: Icon(fallbackIcon, size: 32, color: accentColor),
+      child: Icon(widget.fallbackIcon, size: 32, color: widget.accentColor),
     );
   }
 }

@@ -18,7 +18,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsTitle => '设置';
 
   @override
-  String get optionalPath => '可选路径';
+  String get optionalPath => '本地音乐文件夹';
 
   @override
   String get metadataExtraction => '匹配本地音乐文件以补充元数据信息';

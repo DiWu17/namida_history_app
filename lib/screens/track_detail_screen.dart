@@ -3,10 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:android_intent_plus/android_intent.dart';
 import '../l10n/app_localizations.dart';
+import '../services/analysis_service.dart';
 import '../services/config_service.dart';
 import '../widgets/detail_screen_template.dart';
 
-class TrackDetailScreen extends StatelessWidget {
+class TrackDetailScreen extends StatefulWidget {
   final String trackName;
   final Map<dynamic, dynamic> details;
 
@@ -16,11 +17,49 @@ class TrackDetailScreen extends StatelessWidget {
     required this.details,
   });
 
+  @override
+  State<TrackDetailScreen> createState() => _TrackDetailScreenState();
+}
+
+class _TrackDetailScreenState extends State<TrackDetailScreen> {
+  String _resolvedLocalPath = '';
+  bool _isResolvingPath = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _resolveLocalPath();
+  }
+
+  Future<void> _resolveLocalPath() async {
+    if (_isResolvingPath) return;
+    setState(() => _isResolvingPath = true);
+    try {
+      final resolved = await AnalysisService().resolveLocalPathForDetailsAsync(widget.details);
+      if (!mounted) return;
+      setState(() => _resolvedLocalPath = resolved);
+    } finally {
+      if (mounted) {
+        setState(() => _isResolvingPath = false);
+      }
+    }
+  }
+
+  String get _effectiveLocalPath {
+    if (_resolvedLocalPath.isNotEmpty) {
+      return _resolvedLocalPath;
+    }
+    final localPath = widget.details['localPath']?.toString() ?? '';
+    return localPath;
+  }
+
   Future<void> _playTrack(BuildContext context) async {
     final l10n = AppLocalizations.of(context)!;
+    final localPath = _effectiveLocalPath.isNotEmpty
+        ? _effectiveLocalPath
+        : await AnalysisService().resolveLocalPathForDetailsAsync(widget.details);
 
     if (!kIsWeb && Platform.isAndroid) {
-      final localPath = details['localPath']?.toString() ?? '';
       try {
         if (localPath.isNotEmpty) {
           // Play the specific file in Namida or default player
@@ -50,9 +89,10 @@ class TrackDetailScreen extends StatelessWidget {
       return;
     }
 
-    final localPath = details['localPath']?.toString() ?? '';
-
     if (localPath.isEmpty || !File(localPath).existsSync()) {
+      if (!context.mounted) {
+        return;
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(l10n.fileNotFound)),
       );
@@ -77,12 +117,13 @@ class TrackDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final String localPath = details['localPath']?.toString() ?? '';
-    final bool hasLocalFile = (!kIsWeb && Platform.isAndroid) || (localPath.isNotEmpty && File(localPath).existsSync());
+    final localPath = _effectiveLocalPath;
+    final bool hasLocalFile = (!kIsWeb && Platform.isAndroid) ||
+        (localPath.isNotEmpty && File(localPath).existsSync());
 
     return DetailScreenTemplate(
-      title: trackName,
-      details: details,
+      title: widget.trackName,
+      details: widget.details,
       fallbackIcon: Icons.music_note_rounded,
       accentColor: Colors.blue,
       actions: [
@@ -91,6 +132,15 @@ class TrackDetailScreen extends StatelessWidget {
             tooltip: AppLocalizations.of(context)!.playInNamida,
             icon: const Icon(Icons.play_circle_outline_rounded),
             onPressed: () => _playTrack(context),
+          ),
+        if (_isResolvingPath)
+          const Padding(
+            padding: EdgeInsets.only(right: 12),
+            child: SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
           ),
       ],
       floatingActionButton: hasLocalFile

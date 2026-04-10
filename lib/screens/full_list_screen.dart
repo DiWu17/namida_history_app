@@ -93,7 +93,7 @@ class FullListScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                CoverThumbnail(name: entry.key.toString(), detailsMap: detailsMap, fallbackIcon: icon, size: 40),
+                CoverThumbnail(name: entry.key.toString(), detailsMap: detailsMap, allTrackCompact: type == 'track' ? allTrackCompact : null, fallbackIcon: icon, size: 40),
               ],
             ),
             title: Text(

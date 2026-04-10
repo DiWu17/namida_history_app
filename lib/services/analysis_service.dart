@@ -1,18 +1,29 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
+import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:metadata_audio/metadata_audio.dart';
 import 'package:path/path.dart' as p;
+import 'package:sqlite3/sqlite3.dart' as sqlite;
+
+import 'config_service.dart';
 
 class AnalysisService {
-  final Map<String, Map<String, dynamic>> _musicMetadata = {};
+  static final Map<String, String> _resolvedTrackPathCache = {};
+  static final Set<String> _missingTrackPathCache = {};
+  final Map<String, Map<String, dynamic>> _backupTrackMetadataByPath = {};
+  final Map<String, Map<String, dynamic>> _backupTrackMetadataByBase = {};
+  final Map<String, Map<String, dynamic>> _backupTrackStatsByPath = {};
+  final Map<String, Map<String, dynamic>> _backupTrackStatsByBase = {};
   final Map<String, String> _albumCovers = {};
   final Map<String, String> _trackCovers = {};
+  late final String? _musicDirectory;
   late final String _coversDir;
 
   AnalysisService() {
+    _musicDirectory = ConfigService().get('music_directory');
     _coversDir = p.join(Directory.systemTemp.path, 'namida_covers');
     Directory(_coversDir).createSync(recursive: true);
   }
@@ -20,12 +31,24 @@ class AnalysisService {
   /// Internal constructor for isolate workers (no dir creation needed).
   AnalysisService._worker(
     String coversDir,
-    Map<String, Map<String, dynamic>> musicMeta,
+    Map<String, Map<String, dynamic>> backupTrackMetaByPath,
+    Map<String, Map<String, dynamic>> backupTrackStatsByPath,
     Map<String, String> albumCovers,
     Map<String, String> trackCovers,
+    String? musicDirectory,
   ) {
+    _musicDirectory = musicDirectory;
     _coversDir = coversDir;
-    _musicMetadata.addAll(musicMeta);
+    _backupTrackMetadataByPath.addAll(backupTrackMetaByPath);
+    _backupTrackStatsByPath.addAll(backupTrackStatsByPath);
+    for (final entry in _backupTrackMetadataByPath.entries) {
+      final base = p.basenameWithoutExtension(entry.key).toLowerCase();
+      _backupTrackMetadataByBase.putIfAbsent(base, () => entry.value);
+    }
+    for (final entry in _backupTrackStatsByPath.entries) {
+      final base = p.basenameWithoutExtension(entry.key).toLowerCase();
+      _backupTrackStatsByBase.putIfAbsent(base, () => entry.value);
+    }
     _albumCovers.addAll(albumCovers);
     _trackCovers.addAll(trackCovers);
   }
@@ -46,50 +69,45 @@ class AnalysisService {
     }
     Directory(mergedDir).createSync(recursive: true);
 
-    // Phase 1: Extract ZIPs
+    // Phase 1: Extract ZIPs + read backup DB metadata
     onProgress?.call('extracting:${zipPaths.length}');
-    final extractCount = await Isolate.run(() {
+    final extractResult = await Isolate.run(() {
       return _extractAndMerge(zipPaths, tempDir, mergedDir);
     });
+    final extractCount = extractResult['extractCount'] as int? ?? 0;
     if (extractCount == 0) {
       return {'success': false, 'error': '提取历史文件夹失败，请检查ZIP格式或路径'};
     }
+    final backupTrackMetaByPath = Map<String, Map<String, dynamic>>.from(
+      (extractResult['backupTrackMetaByPath'] as Map? ?? {}).map(
+        (k, v) => MapEntry(k.toString(), Map<String, dynamic>.from(v as Map)),
+      ),
+    );
+    final backupTrackStatsByPath = Map<String, Map<String, dynamic>>.from(
+      (extractResult['backupTrackStatsByPath'] as Map? ?? {}).map(
+        (k, v) => MapEntry(k.toString(), Map<String, dynamic>.from(v as Map)),
+      ),
+    );
 
-    // Phase 2: Scan music directory
     final coversDir = _coversDir;
-    Map<String, Map<String, dynamic>> musicMeta = {};
-    Map<String, String> albumCovers = {};
-    Map<String, String> trackCovers = {};
-    if (musicDir != null) {
-      onProgress?.call('scanning');
-      final scanResult = await Isolate.run(() async {
-        final worker = AnalysisService._worker(coversDir, {}, {}, {});
-        await worker._scanMusicDirectory(musicDir);
-        return {
-          'musicMetadata': worker._musicMetadata,
-          'albumCovers': worker._albumCovers,
-          'trackCovers': worker._trackCovers,
-        };
-      });
-      musicMeta = Map<String, Map<String, dynamic>>.from(
-        (scanResult['musicMetadata'] as Map).map((k, v) =>
-          MapEntry(k.toString(), Map<String, dynamic>.from(v as Map))),
-      );
-      albumCovers = Map<String, String>.from(scanResult['albumCovers'] as Map);
-      trackCovers = Map<String, String>.from(scanResult['trackCovers'] as Map);
-    }
-
-    // Phase 3: Load, enrich, and analyze
+    // Phase 2: Load, enrich, and analyze
     onProgress?.call('analyzing');
     final result = await Isolate.run(() {
-      final worker = AnalysisService._worker(coversDir, musicMeta, albumCovers, trackCovers);
+      final worker = AnalysisService._worker(
+        coversDir,
+        backupTrackMetaByPath,
+        backupTrackStatsByPath,
+        {},
+        {},
+        musicDir,
+      );
       final records = worker._loadRecords(mergedDir);
       worker._enrichRecords(records);
       final summaries = worker._getAllSummaries(records);
       return {'success': true, 'summaries': summaries};
     });
 
-    // Phase 4: Cleanup
+    // Phase 3: Cleanup
     onProgress?.call('cleanup');
     try {
       Directory(tempDir).deleteSync(recursive: true);
@@ -99,28 +117,172 @@ class AnalysisService {
   }
 
   /// Runs in background isolate: extract ZIPs and merge JSON files.
-  static int _extractAndMerge(
+  static Map<String, dynamic> _extractAndMerge(
       List<String> zipPaths, String tempDir, String mergedDir) {
     int successCount = 0;
+    final backupTrackMetaByPath = <String, Map<String, dynamic>>{};
+    final backupTrackStatsByPath = <String, Map<String, dynamic>>{};
     for (int i = 0; i < zipPaths.length; i++) {
-      final resultPath =
+      final extractToPath = p.join(tempDir, 'zip_$i');
+      final extracted =
           _extractHistoryFolderSync(zipPaths[i], p.join(tempDir, 'zip_$i'));
-      if (resultPath != null && Directory(resultPath).existsSync()) {
-        _mergeJsonFiles(resultPath, mergedDir);
+      final historyDir = extracted?['historyDir'];
+      final localFilesDir = extracted?['localFilesDir'];
+
+      if (historyDir != null && Directory(historyDir).existsSync()) {
+        final dbSearchDirs = <String>[];
+        if (localFilesDir != null && Directory(localFilesDir).existsSync()) {
+          dbSearchDirs.add(localFilesDir);
+        }
+        // Fallback: some backups may place DBs elsewhere.
+        dbSearchDirs.add(historyDir);
+
+        final dbData = _readBackupDatabases(dbSearchDirs);
+        backupTrackMetaByPath.addAll(dbData['trackMetaByPath'] as Map<String, Map<String, dynamic>>);
+        backupTrackStatsByPath.addAll(dbData['trackStatsByPath'] as Map<String, Map<String, dynamic>>);
+        _mergeJsonFiles(historyDir, mergedDir);
         successCount++;
         try {
-          Directory(resultPath).deleteSync(recursive: true);
+          Directory(extractToPath).deleteSync(recursive: true);
         } catch (_) {}
       }
     }
-    return successCount;
+    return {
+      'extractCount': successCount,
+      'backupTrackMetaByPath': backupTrackMetaByPath,
+      'backupTrackStatsByPath': backupTrackStatsByPath,
+    };
   }
+
+  static Map<String, Map<String, dynamic>> _readBackupDatabases(List<String> searchDirs) {
+    final trackMetaByPath = <String, Map<String, dynamic>>{};
+    final trackStatsByPath = <String, Map<String, dynamic>>{};
+
+    for (final dirPath in searchDirs) {
+      final dir = Directory(dirPath);
+      if (!dir.existsSync()) continue;
+      for (final entity in dir.listSync(recursive: true)) {
+        if (entity is! File) continue;
+        final fileName = p.basename(entity.path).toLowerCase();
+        if (fileName != 'tracks.db' && fileName != 'tracks_stats.db') continue;
+
+        final kvRows = _readJsonKeyValueRowsFromSqlite(entity.path);
+        if (kvRows.isEmpty) continue;
+
+        if (fileName == 'tracks.db') {
+          for (final entry in kvRows.entries) {
+            final normPath = _normalizeTrackPath(entry.key);
+            final val = entry.value;
+            if (normPath.isEmpty || val is! Map<String, dynamic>) continue;
+            trackMetaByPath[normPath] = val;
+          }
+        } else {
+          for (final entry in kvRows.entries) {
+            final normPath = _normalizeTrackPath(entry.key);
+            final val = entry.value;
+            if (normPath.isEmpty || val is! Map<String, dynamic>) continue;
+            trackStatsByPath[normPath] = val;
+          }
+        }
+      }
+    }
+
+    return {
+      'trackMetaByPath': trackMetaByPath,
+      'trackStatsByPath': trackStatsByPath,
+    };
+  }
+
+  static Map<String, dynamic> _readJsonKeyValueRowsFromSqlite(String dbPath) {
+    final result = <String, dynamic>{};
+    sqlite.Database? db;
+    try {
+      db = sqlite.sqlite3.open(dbPath, mode: sqlite.OpenMode.readOnly);
+      final tables = db.select(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'",
+      );
+
+      for (final tableRow in tables) {
+        final tableName = tableRow['name']?.toString();
+        if (tableName == null || tableName.isEmpty) continue;
+
+        final escapedTable = _escapeSqlIdentifier(tableName);
+        final cols = db.select('PRAGMA table_info("$escapedTable")');
+        if (cols.isEmpty) continue;
+
+        final colNames = cols
+            .map((c) => c['name']?.toString())
+            .whereType<String>()
+            .toList();
+        if (colNames.length < 2) continue;
+
+        final keyCol = _pickLikelyColumn(colNames, const ['key', 'path']) ?? colNames.first;
+        final valCol = _pickLikelyColumn(colNames, const ['value', 'json', 'data']) ?? colNames[1];
+
+        final escapedKeyCol = _escapeSqlIdentifier(keyCol);
+        final escapedValCol = _escapeSqlIdentifier(valCol);
+        final rows = db.select(
+          'SELECT "$escapedKeyCol" AS k, "$escapedValCol" AS v FROM "$escapedTable"',
+        );
+
+        for (final row in rows) {
+          final key = row['k']?.toString();
+          if (key == null || key.isEmpty) continue;
+          final decoded = _decodeJsonPayload(row['v']);
+          if (decoded != null) {
+            result[key] = decoded;
+          }
+        }
+      }
+    } catch (_) {
+      return {};
+    } finally {
+      try {
+        db?.dispose();
+      } catch (_) {}
+    }
+    return result;
+  }
+
+  static dynamic _decodeJsonPayload(Object? raw) {
+    if (raw == null) return null;
+    if (raw is Map || raw is List) return raw;
+
+    String? text;
+    if (raw is String) {
+      text = raw;
+    } else if (raw is Uint8List) {
+      text = utf8.decode(raw, allowMalformed: true);
+    } else if (raw is List<int>) {
+      text = utf8.decode(raw, allowMalformed: true);
+    }
+    if (text == null || text.trim().isEmpty) return null;
+
+    try {
+      return jsonDecode(text);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static String? _pickLikelyColumn(List<String> cols, List<String> hints) {
+    for (final c in cols) {
+      final lower = c.toLowerCase();
+      if (hints.any(lower.contains)) return c;
+    }
+    return null;
+  }
+
+  static String _escapeSqlIdentifier(String ident) => ident.replaceAll('"', '""');
+
+  static String _normalizeTrackPath(String path) =>
+      path.replaceAll('\\', '/').trim().toLowerCase();
 
   // ---------------------------------------------------------------------------
   // ZIP extraction (replaces extractor.py)
   // ---------------------------------------------------------------------------
 
-  static String? _extractHistoryFolderSync(
+  static Map<String, String>? _extractHistoryFolderSync(
       String backupZipPath, String extractToPath) {
     final zipFile = File(backupZipPath);
     if (!zipFile.existsSync()) return null;
@@ -129,12 +291,18 @@ class AnalysisService {
       final bytes = zipFile.readAsBytesSync();
       final archive = ZipDecoder().decodeBytes(bytes);
 
-      // Find the nested TEMPDIR_History.zip
+      // Find nested archives in backup root
       ArchiveFile? historyZipEntry;
+      ArchiveFile? localFilesZipEntry;
       for (final file in archive) {
-        if (file.name == 'TEMPDIR_History.zip' && file.isFile) {
+        if (!file.isFile) continue;
+        final baseName = p.basename(file.name).toLowerCase();
+        if (baseName == 'tempdir_history.zip') {
           historyZipEntry = file;
-          break;
+          continue;
+        }
+        if (baseName == 'local_files.zip') {
+          localFilesZipEntry = file;
         }
       }
       if (historyZipEntry == null) return null;
@@ -152,7 +320,27 @@ class AnalysisService {
           outFile.writeAsBytesSync(file.content as List<int>);
         }
       }
-      return historyDir;
+
+      String? localFilesDir;
+      if (localFilesZipEntry != null) {
+        final localArchive =
+            ZipDecoder().decodeBytes(localFilesZipEntry.content as List<int>);
+        localFilesDir = p.join(extractToPath, 'LOCAL_FILES');
+        Directory(localFilesDir).createSync(recursive: true);
+
+        for (final file in localArchive) {
+          if (file.isFile) {
+            final outFile = File(p.join(localFilesDir, file.name));
+            outFile.parent.createSync(recursive: true);
+            outFile.writeAsBytesSync(file.content as List<int>);
+          }
+        }
+      }
+
+      return {
+        'historyDir': historyDir,
+        if (localFilesDir != null) 'localFilesDir': localFilesDir,
+      };
     } catch (_) {
       return null;
     }
@@ -179,55 +367,6 @@ class AnalysisService {
           dstFile.writeAsStringSync(jsonEncode(newRecords));
         }
       } catch (_) {}
-    }
-  }
-
-  // ---------------------------------------------------------------------------
-  // Music metadata scanning (replaces parser.py scan_music_directory)
-  // ---------------------------------------------------------------------------
-
-  Future<void> _scanMusicDirectory(String musicDir) async {
-    final dir = Directory(musicDir);
-    if (!dir.existsSync()) return;
-
-    final supportedExts = {
-      '.mp3', '.flac', '.m4a', '.wav', '.ogg', '.opus', '.aac', '.wma'
-    };
-
-    await for (final entity in dir.list(recursive: true)) {
-      if (entity is! File) continue;
-      final ext = p.extension(entity.path).toLowerCase();
-      if (!supportedExts.contains(ext)) continue;
-
-      try {
-        final metadata = await parseFile(entity.path);
-        final baseName =
-            p.basenameWithoutExtension(entity.path).toLowerCase();
-
-        if (!_musicMetadata.containsKey(baseName)) {
-          final common = metadata.common;
-          final durationVal = metadata.format.duration;
-          final duration = durationVal?.toDouble() ?? 0.0;
-
-          _musicMetadata[baseName] = {
-            'artist': common.artist,
-            'album': common.album,
-            'title': common.title,
-            'duration': duration,
-            'genre': common.genre?.firstOrNull,
-            'localPath': entity.path,
-          };
-
-          // Extract cover art
-          final cover = selectCover(common.picture);
-          if (cover != null &&
-              cover.data.length >= 100) {
-            _saveCover(cover.data, baseName, common.album);
-          }
-        }
-      } catch (_) {
-        // skip un-parseable files
-      }
     }
   }
 
@@ -313,21 +452,39 @@ class AnalysisService {
       final track = r['track']?.toString() ?? '';
       final trackName = p.basename(track);
       final trackBase = p.basenameWithoutExtension(trackName).toLowerCase();
+      final trackPathNorm = _normalizeTrackPath(track);
       r['track_name'] = trackName;
       r['track_base'] = trackBase;
 
-      // Map metadata
-      final meta = _musicMetadata[trackBase];
+        // Prefer metadata from backup DB and only do lightweight path remapping
+        // during analysis. Actual file lookup stays on-demand in UI flows.
+      final backupMeta = _backupTrackMetadataByPath[trackPathNorm] ??
+          _backupTrackMetadataByBase[trackBase];
+        final sourcePath = _firstNonEmpty([
+          backupMeta?['path'],
+          track,
+          ]) ??
+          track;
+        final meta = _buildMergedTrackMeta(sourcePath, backupMeta);
+
       r['artist'] = _metaStr(meta, 'artist', 'Unknown Artist');
       r['album'] = _metaStr(meta, 'album', 'Unknown Album');
       r['title'] = _metaStr(meta, 'title', '') .isEmpty
           ? trackName
           : _metaStr(meta, 'title', trackName);
-      r['duration'] = (meta?['duration'] is num)
-          ? (meta!['duration'] as num).toDouble()
+      r['duration'] = (meta['duration'] is num)
+          ? (meta['duration'] as num).toDouble()
           : 0.0;
       r['genre'] = _metaStr(meta, 'genre', 'Unknown Genre');
-      r['localPath'] = meta?['localPath']?.toString() ?? '';
+        r['sourcePath'] = sourcePath;
+        r['localPath'] = meta['localPath']?.toString() ?? '';
+
+      // Attach track stats (rating/moods/tags) from backup DB if available.
+      final stats = _backupTrackStatsByPath[trackPathNorm] ??
+          _backupTrackStatsByBase[trackBase];
+      r['rating'] = _asInt(stats?['rating']) ?? 0;
+      r['tags'] = _asStringList(stats?['tags']);
+      r['moods'] = _asStringList(stats?['moods']);
 
       // Parse datetime → CST (UTC+8)
       final dateAdded = r['dateAdded'];
@@ -523,6 +680,7 @@ class AnalysisService {
     for (final tName in mostPlayed.keys.take(300)) {
       final tRecords = records.where((r) => r['title'] == tName).toList();
       if (tRecords.isEmpty) continue;
+      final representative = _pickRepresentativeRecord(tRecords);
       final dates = tRecords
           .map((r) => r['datetime'])
           .whereType<DateTime>()
@@ -538,7 +696,10 @@ class AnalysisService {
         'history': history,
         'total_plays': tRecords.length,
         'cover': _getTrackCover(tName, records),
-        'localPath': tRecords.firstWhere((r) => (r['localPath']?.toString() ?? '').isNotEmpty, orElse: () => {})['localPath']?.toString() ?? '',
+        'sourcePath': representative['sourcePath']?.toString() ?? '',
+        'localPath': representative['localPath']?.toString() ?? '',
+        'track_base': representative['track_base']?.toString() ?? '',
+        'album': representative['album']?.toString() ?? '',
       };
     }
 
@@ -548,6 +709,7 @@ class AnalysisService {
       final aRecords =
           records.where((r) => r['artist'] == aName).toList();
       if (aRecords.isEmpty) continue;
+      final representative = _pickRepresentativeRecord(aRecords);
       final dates = aRecords
           .map((r) => r['datetime'])
           .whereType<DateTime>()
@@ -565,6 +727,10 @@ class AnalysisService {
         'total_plays': aRecords.length,
         'top_songs': topSongs,
         'cover': _getArtistCover(aName, records),
+        'sourcePath': representative['sourcePath']?.toString() ?? '',
+        'localPath': representative['localPath']?.toString() ?? '',
+        'track_base': representative['track_base']?.toString() ?? '',
+        'album': representative['album']?.toString() ?? '',
       };
     }
 
@@ -574,6 +740,7 @@ class AnalysisService {
       final alRecords =
           records.where((r) => r['album'] == alName).toList();
       if (alRecords.isEmpty) continue;
+      final representative = _pickRepresentativeRecord(alRecords);
       final dates = alRecords
           .map((r) => r['datetime'])
           .whereType<DateTime>()
@@ -591,6 +758,10 @@ class AnalysisService {
         'total_plays': alRecords.length,
         'top_songs': topSongs,
         'cover': _albumCovers[alName] ?? '',
+        'sourcePath': representative['sourcePath']?.toString() ?? '',
+        'localPath': representative['localPath']?.toString() ?? '',
+        'track_base': representative['track_base']?.toString() ?? '',
+        'album': alName,
       };
     }
 
@@ -608,6 +779,7 @@ class AnalysisService {
       final tName = entry.key;
       if (trackDetails.containsKey(tName)) continue; // already pre-computed
       final tRecords = entry.value;
+      final representative = _pickRepresentativeRecord(tRecords);
       final datetimes = tRecords
           .map((r) => r['datetime'])
           .whereType<DateTime>()
@@ -623,10 +795,10 @@ class AnalysisService {
         'history': history,
         'total_plays': tRecords.length,
         'cover': _getTrackCover(tName, tRecords),
-        'localPath': tRecords.firstWhere(
-          (r) => (r['localPath']?.toString() ?? '').isNotEmpty,
-          orElse: () => {},
-        )['localPath']?.toString() ?? '',
+        'sourcePath': representative['sourcePath']?.toString() ?? '',
+        'localPath': representative['localPath']?.toString() ?? '',
+        'track_base': representative['track_base']?.toString() ?? '',
+        'album': representative['album']?.toString() ?? '',
       };
     }
 
@@ -665,6 +837,182 @@ class AnalysisService {
     final val = meta[key];
     if (val == null || val.toString().isEmpty) return fallback;
     return val.toString();
+  }
+
+  Map<String, dynamic> _buildMergedTrackMeta(
+    String sourcePath,
+    Map<String, dynamic>? backupMeta,
+  ) {
+    final durationMs = _asNum(backupMeta?['durationMS']);
+    final durationSec = _asNum(backupMeta?['duration']);
+    final resolvedDuration = durationMs != null
+        ? durationMs / 1000.0
+        : (durationSec?.toDouble() ?? 0.0);
+
+    return {
+      'artist': _firstNonEmpty([
+        backupMeta?['originalArtist'],
+        backupMeta?['artist'],
+      ]),
+      'album': _firstNonEmpty([
+        backupMeta?['originalAlbum'],
+        backupMeta?['album'],
+      ]),
+      'title': _firstNonEmpty([
+        backupMeta?['title'],
+      ]),
+      'genre': _firstNonEmpty([
+        backupMeta?['originalGenre'],
+        backupMeta?['genre'],
+      ]),
+      'duration': resolvedDuration,
+      'localPath': _remapTrackPathSync(
+        sourcePath,
+        musicDir: _musicDirectory,
+      ),
+    };
+  }
+
+  Map<String, dynamic> _pickRepresentativeRecord(
+    List<Map<String, dynamic>> records,
+  ) {
+    for (final record in records) {
+      final localPath = record['localPath']?.toString() ?? '';
+      if (localPath.isNotEmpty && File(localPath).existsSync()) {
+        return record;
+      }
+    }
+    for (final record in records) {
+      final sourcePath = record['sourcePath']?.toString() ?? '';
+      if (sourcePath.isNotEmpty) {
+        return record;
+      }
+    }
+    for (final record in records) {
+      final localPath = record['localPath']?.toString() ?? '';
+      if (localPath.isNotEmpty) {
+        return record;
+      }
+    }
+    return records.first;
+  }
+
+  Future<String> resolveLocalPathForDetailsAsync(
+    Map<dynamic, dynamic> details,
+  ) async {
+    final resolved = await resolveTrackFilePathAsync(
+      sourcePath: details['sourcePath']?.toString() ?? '',
+      localPath: details['localPath']?.toString() ?? '',
+    );
+    if (resolved.isNotEmpty) {
+      details['localPath'] = resolved;
+    }
+    return resolved;
+  }
+
+  Future<String> resolveTrackFilePathAsync({
+    required String sourcePath,
+    String? localPath,
+  }) async {
+    final directPath = localPath?.trim() ?? '';
+    if (directPath.isNotEmpty && File(directPath).existsSync()) {
+      return directPath;
+    }
+
+    final originalPath = sourcePath.trim();
+    if (originalPath.isEmpty) {
+      return '';
+    }
+    if (File(originalPath).existsSync()) {
+      return originalPath;
+    }
+
+    final cacheKey = _buildPathCacheKey(originalPath, _musicDirectory);
+    final cached = _resolvedTrackPathCache[cacheKey];
+    if (cached != null && cached.isNotEmpty && File(cached).existsSync()) {
+      return cached;
+    }
+
+    final remapped = _remapTrackPathSync(
+      originalPath,
+      preferredPath: localPath,
+      musicDir: _musicDirectory,
+    );
+    if (remapped.isNotEmpty) {
+      _cacheResolvedTrackPath(cacheKey, remapped);
+      return remapped;
+    }
+
+    if (_missingTrackPathCache.contains(cacheKey)) {
+      return '';
+    }
+
+    final searched = await _searchTrackPathAsync(originalPath, _musicDirectory);
+    if (searched.isNotEmpty) {
+      _cacheResolvedTrackPath(cacheKey, searched);
+      return searched;
+    }
+
+    _missingTrackPathCache.add(cacheKey);
+    return '';
+  }
+
+  Future<String> extractCoverForDetailsAsync(
+    Map<dynamic, dynamic> details,
+  ) async {
+    final existingCover = details['cover']?.toString() ?? '';
+    if (existingCover.isNotEmpty && File(existingCover).existsSync()) {
+      return existingCover;
+    }
+
+    final localPath = await resolveLocalPathForDetailsAsync(details);
+    if (localPath.isEmpty) {
+      return '';
+    }
+
+    final trackBase = details['track_base']?.toString();
+    final album = details['album']?.toString();
+    final coverPath = await extractCoverFromAudioFileAsync(
+      localPath,
+      trackBase?.isNotEmpty == true ? trackBase : null,
+      album?.isNotEmpty == true ? album : null,
+    );
+    if (coverPath.isNotEmpty) {
+      details['cover'] = coverPath;
+    }
+    return coverPath;
+  }
+
+  String? _firstNonEmpty(List<dynamic> values) {
+    for (final v in values) {
+      if (v == null) continue;
+      final s = v.toString().trim();
+      if (s.isNotEmpty) return s;
+    }
+    return null;
+  }
+
+  num? _asNum(dynamic v) {
+    if (v is num) return v;
+    if (v is String) return num.tryParse(v);
+    return null;
+  }
+
+  int? _asInt(dynamic v) {
+    if (v is int) return v;
+    if (v is num) return v.round();
+    if (v is String) return int.tryParse(v);
+    return null;
+  }
+
+  List<String> _asStringList(dynamic v) {
+    if (v is List) {
+      return v.map((e) => e.toString().trim()).where((e) => e.isNotEmpty).toList();
+    }
+    if (v is String && v.trim().isNotEmpty) {
+      return v.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+    }
+    return const [];
   }
 
   Map<String, int> _countValues(
@@ -721,10 +1069,166 @@ class AnalysisService {
     return _getTrackCover(topTrack, artistRecords);
   }
 
+  /// Async method to extract cover from audio file on-demand.
+  /// UI can call this when hovering/clicking on a track that needs cover art.
+  Future<String> extractCoverFromAudioFileAsync(
+    String filePath,
+    String? baseName,
+    String? album,
+  ) async {
+    if (!File(filePath).existsSync()) return '';
+    try {
+      final metadata = await parseFile(filePath);
+      final common = metadata.common;
+      final cover = selectCover(common.picture);
+      if (cover != null && cover.data.length >= 100) {
+        _saveCover(cover.data, baseName ?? '', album);
+        return baseName != null && _trackCovers.containsKey(baseName)
+            ? _trackCovers[baseName]!
+            : '';
+      }
+    } catch (_) {}
+    return '';
+  }
+
   String _sanitizeFilename(String name) {
     var s = name.replaceAll(RegExp(r'[<>:"/\\|?*]'), '_').trim();
     if (s.length > 100) s = s.substring(0, 100);
     return s;
+  }
+
+  static void _cacheResolvedTrackPath(String cacheKey, String resolvedPath) {
+    _missingTrackPathCache.remove(cacheKey);
+    _resolvedTrackPathCache[cacheKey] = resolvedPath;
+  }
+
+  static String _buildPathCacheKey(String sourcePath, String? musicDir) {
+    return '${_normalizeTrackPath(sourcePath)}|${_normalizeTrackPath(musicDir ?? '')}';
+  }
+
+  static String _remapTrackPathSync(
+    String sourcePath, {
+    String? preferredPath,
+    String? musicDir,
+  }) {
+    final preferred = preferredPath?.trim() ?? '';
+    if (preferred.isNotEmpty && File(preferred).existsSync()) {
+      return preferred;
+    }
+
+    final original = sourcePath.trim();
+    if (original.isEmpty) {
+      return '';
+    }
+    if (File(original).existsSync()) {
+      return original;
+    }
+
+    final baseDir = musicDir?.trim() ?? '';
+    if (baseDir.isEmpty || !Directory(baseDir).existsSync()) {
+      return '';
+    }
+
+    final candidates = _buildRemapCandidates(original, baseDir);
+    for (final candidate in candidates) {
+      if (File(candidate).existsSync()) {
+        return candidate;
+      }
+    }
+    return '';
+  }
+
+  static List<String> _buildRemapCandidates(String sourcePath, String musicDir) {
+    final sourceSegments = _pathSegments(sourcePath);
+    final candidates = <String>{};
+    for (int start = 0; start < sourceSegments.length; start++) {
+      final suffix = sourceSegments.sublist(start);
+      if (suffix.isEmpty) {
+        continue;
+      }
+      candidates.add(p.normalize(p.joinAll([musicDir, ...suffix])));
+    }
+
+    final basename = p.basename(sourcePath);
+    if (basename.isNotEmpty) {
+      candidates.add(p.normalize(p.join(musicDir, basename)));
+    }
+    return candidates.toList(growable: false);
+  }
+
+  Future<String> _searchTrackPathAsync(String sourcePath, String? musicDir) async {
+    final baseDir = musicDir?.trim() ?? '';
+    if (baseDir.isEmpty) {
+      return '';
+    }
+
+    final dir = Directory(baseDir);
+    if (!dir.existsSync()) {
+      return '';
+    }
+
+    final targetName = p.basename(sourcePath).toLowerCase();
+    final targetBase = p.basenameWithoutExtension(sourcePath).toLowerCase();
+    final targetExt = p.extension(sourcePath).toLowerCase();
+    final sourceSegments = _pathSegments(sourcePath);
+
+    var bestPath = '';
+    var bestScore = -1;
+
+    await for (final entity in dir.list(recursive: true, followLinks: false)) {
+      if (entity is! File) {
+        continue;
+      }
+
+      final candidateExt = p.extension(entity.path).toLowerCase();
+      if (targetExt.isNotEmpty && candidateExt != targetExt) {
+        continue;
+      }
+
+      final candidateName = p.basename(entity.path).toLowerCase();
+      final candidateBase = p.basenameWithoutExtension(entity.path).toLowerCase();
+      if (candidateName != targetName && candidateBase != targetBase) {
+        continue;
+      }
+
+      final score = _scorePathMatch(sourceSegments, entity.path);
+      if (score > bestScore) {
+        bestScore = score;
+        bestPath = entity.path;
+      }
+    }
+
+    return bestPath;
+  }
+
+  static int _scorePathMatch(List<String> sourceSegments, String candidatePath) {
+    final candidateSegments = _pathSegments(candidatePath);
+    var score = 0;
+    var sourceIndex = sourceSegments.length - 1;
+    var candidateIndex = candidateSegments.length - 1;
+    var consecutiveMatches = 0;
+
+    while (sourceIndex >= 0 && candidateIndex >= 0) {
+      if (sourceSegments[sourceIndex] == candidateSegments[candidateIndex]) {
+        consecutiveMatches++;
+        score += candidateIndex == candidateSegments.length - 1 ? 20 : 5 * consecutiveMatches;
+        sourceIndex--;
+        candidateIndex--;
+        continue;
+      }
+      break;
+    }
+
+    return score;
+  }
+
+  static List<String> _pathSegments(String path) {
+    return path
+        .replaceAll('\\', '/')
+        .split('/')
+        .map((segment) => segment.trim())
+        .where((segment) => segment.isNotEmpty && segment != '.')
+        .toList(growable: false);
   }
 
   static String _pad2(int n) => n.toString().padLeft(2, '0');

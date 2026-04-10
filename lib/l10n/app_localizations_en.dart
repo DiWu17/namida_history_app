@@ -18,7 +18,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsTitle => 'Settings';
 
   @override
-  String get optionalPath => 'Optional Path';
+  String get optionalPath => 'Local Music Folder';
 
   @override
   String get metadataExtraction =>
