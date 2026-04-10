@@ -128,6 +128,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late int _monthlyPreviewCount;
   late String _monthFormat; // 'numeric' or 'english'
 
+  late double _fontScale;
+  bool _fontScaleInitialized = false;
+
   late List<MapEntry<String, bool>> _coreItems;
 
   @override
@@ -144,6 +147,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _monthFormat = cfg.get('month_format') ?? 'numeric';
 
     _coreItems = loadCoreNumbersConfig();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_fontScaleInitialized) {
+      _fontScale = Provider.of<ThemeProvider>(context, listen: false).fontScale;
+      _fontScaleInitialized = true;
+    }
   }
 
   Future<void> _setIntConfig(String key, int value) async {
@@ -307,24 +319,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   // --- Font Size ---
   Widget _buildFontSizeTile(AppLocalizations l10n) {
-    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
-    final scale = themeProvider.fontScale;
     return ListTile(
       leading: const Icon(Icons.format_size_rounded),
       title: Text(l10n.settingsFontSize),
       subtitle: Slider(
-        value: scale,
+        value: _fontScale,
         min: 0.8,
         max: 1.5,
         divisions: 14,
-        label: l10n.settingsFontSizeValue((scale * 100).round()),
+        label: l10n.settingsFontSizeValue((_fontScale * 100).round()),
         onChanged: (v) {
-          themeProvider.setFontScale(v);
-          setState(() {});
+          setState(() => _fontScale = v);
+        },
+        onChangeEnd: (v) {
+          Provider.of<ThemeProvider>(context, listen: false).setFontScale(v);
         },
       ),
       trailing: Text(
-        l10n.settingsFontSizeValue((scale * 100).round()),
+        l10n.settingsFontSizeValue((_fontScale * 100).round()),
         style: const TextStyle(fontWeight: FontWeight.bold),
       ),
     );
