@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
-import '../services/track_detail_resolver.dart';
 import '../widgets/top_list_section.dart';
 import 'monthly_detail_screen.dart';
 
