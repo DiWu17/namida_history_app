@@ -92,6 +92,9 @@ class AnalysisService {
         (k, v) => MapEntry(k.toString(), Map<String, dynamic>.from(v as Map)),
       ),
     );
+    final playlists = (extractResult['playlists'] as List?)
+        ?.map((e) => Map<String, dynamic>.from(e as Map))
+        .toList() ?? <Map<String, dynamic>>[];
 
     final coversDir = _coversDir;
     // Phase 2: Load, enrich, and analyze
@@ -107,7 +110,7 @@ class AnalysisService {
       );
       final records = worker._loadRecords(mergedDir);
       worker._enrichRecords(records);
-      final summaries = worker._getAllSummaries(records);
+      final summaries = worker._getAllSummaries(records, playlists);
       return {'success': true, 'summaries': summaries};
     });
 
@@ -126,12 +129,14 @@ class AnalysisService {
     int successCount = 0;
     final backupTrackMetaByPath = <String, Map<String, dynamic>>{};
     final backupTrackStatsByPath = <String, Map<String, dynamic>>{};
+    final playlistsByName = <String, Map<String, dynamic>>{};
     for (int i = 0; i < zipPaths.length; i++) {
       final extractToPath = p.join(tempDir, 'zip_$i');
       final extracted =
           _extractHistoryFolderSync(zipPaths[i], p.join(tempDir, 'zip_$i'));
       final historyDir = extracted?['historyDir'];
       final localFilesDir = extracted?['localFilesDir'];
+      final playlistsDir = extracted?['playlistsDir'];
 
       if (historyDir != null && Directory(historyDir).existsSync()) {
         final dbSearchDirs = <String>[];
@@ -145,6 +150,41 @@ class AnalysisService {
         backupTrackMetaByPath.addAll(dbData['trackMetaByPath'] as Map<String, Map<String, dynamic>>);
         backupTrackStatsByPath.addAll(dbData['trackStatsByPath'] as Map<String, Map<String, dynamic>>);
         _mergeJsonFiles(historyDir, mergedDir);
+
+        // Parse playlists and merge by name
+        if (playlistsDir != null && Directory(playlistsDir).existsSync()) {
+          for (final pl in _readPlaylists(playlistsDir)) {
+            final name = pl['name']?.toString() ?? '';
+            if (name.isEmpty) continue;
+            final existing = playlistsByName[name];
+            if (existing == null) {
+              playlistsByName[name] = pl;
+            } else {
+              // Merge tracks: collect existing track paths to avoid duplicates
+              final existingTracks = existing['tracks'] as List? ?? [];
+              final existingPaths = <String>{
+                for (final t in existingTracks)
+                  if (t is Map) (t['track']?.toString() ?? '').toLowerCase(),
+              };
+              final newTracks = pl['tracks'] as List? ?? [];
+              for (final t in newTracks) {
+                if (t is! Map) continue;
+                final tp = (t['track']?.toString() ?? '').toLowerCase();
+                if (tp.isNotEmpty && !existingPaths.contains(tp)) {
+                  existingTracks.add(t);
+                  existingPaths.add(tp);
+                }
+              }
+              // Keep the latest modification date
+              final existingMod = existing['modifiedDate']?.toString() ?? '';
+              final newMod = pl['modifiedDate']?.toString() ?? '';
+              if (newMod.compareTo(existingMod) > 0) {
+                existing['modifiedDate'] = pl['modifiedDate'];
+              }
+            }
+          }
+        }
+
         successCount++;
         try {
           Directory(extractToPath).deleteSync(recursive: true);
@@ -155,7 +195,27 @@ class AnalysisService {
       'extractCount': successCount,
       'backupTrackMetaByPath': backupTrackMetaByPath,
       'backupTrackStatsByPath': backupTrackStatsByPath,
+      'playlists': playlistsByName.values.toList(),
     };
+  }
+
+  /// Read all playlist JSON files from extracted TEMPDIR_Playlists directory.
+  static List<Map<String, dynamic>> _readPlaylists(String playlistsDir) {
+    final result = <Map<String, dynamic>>[];
+    for (final entity in Directory(playlistsDir).listSync(recursive: true)) {
+      if (entity is! File || !entity.path.endsWith('.json')) continue;
+      try {
+        var content = entity.readAsStringSync();
+        if (content.startsWith('\uFEFF')) content = content.substring(1);
+        final data = jsonDecode(content);
+        if (data is Map<String, dynamic> &&
+            data.containsKey('name') &&
+            data.containsKey('tracks')) {
+          result.add(data);
+        }
+      } catch (_) {}
+    }
+    return result;
   }
 
   static Map<String, Map<String, dynamic>> _readBackupDatabases(List<String> searchDirs) {
@@ -298,6 +358,7 @@ class AnalysisService {
       // Find nested archives in backup root
       ArchiveFile? historyZipEntry;
       ArchiveFile? localFilesZipEntry;
+      ArchiveFile? playlistsZipEntry;
       for (final file in archive) {
         if (!file.isFile) continue;
         final baseName = p.basename(file.name).toLowerCase();
@@ -307,6 +368,10 @@ class AnalysisService {
         }
         if (baseName == 'local_files.zip') {
           localFilesZipEntry = file;
+          continue;
+        }
+        if (baseName == 'tempdir_playlists.zip') {
+          playlistsZipEntry = file;
         }
       }
       if (historyZipEntry == null) return null;
@@ -341,9 +406,27 @@ class AnalysisService {
         }
       }
 
+      // Extract playlists ZIP
+      String? playlistsDir;
+      if (playlistsZipEntry != null) {
+        final playlistsArchive =
+            ZipDecoder().decodeBytes(playlistsZipEntry.content as List<int>);
+        playlistsDir = p.join(extractToPath, 'TEMPDIR_Playlists');
+        Directory(playlistsDir).createSync(recursive: true);
+
+        for (final file in playlistsArchive) {
+          if (file.isFile) {
+            final outFile = File(p.join(playlistsDir, file.name));
+            outFile.parent.createSync(recursive: true);
+            outFile.writeAsBytesSync(file.content as List<int>);
+          }
+        }
+      }
+
       return {
         'historyDir': historyDir,
         if (localFilesDir != null) 'localFilesDir': localFilesDir,
+        if (playlistsDir != null) 'playlistsDir': playlistsDir,
       };
     } catch (_) {
       return null;
@@ -507,9 +590,9 @@ class AnalysisService {
   // Summary generation (replaces parser.py get_summary / get_all_summaries)
   // ---------------------------------------------------------------------------
 
-  Map<String, dynamic> _getAllSummaries(List<Map<String, dynamic>> records) {
+  Map<String, dynamic> _getAllSummaries(List<Map<String, dynamic>> records, List<Map<String, dynamic>> playlists) {
     final summaries = <String, dynamic>{};
-    summaries['所有时间'] = _getSummary(records);
+    summaries['所有时间'] = _getSummary(records, playlists);
 
     // Per-year
     final byYear = <String, List<Map<String, dynamic>>>{};
@@ -521,12 +604,12 @@ class AnalysisService {
       }
     }
     for (final entry in byYear.entries) {
-      summaries[entry.key] = _getSummary(entry.value);
+      summaries[entry.key] = _getSummary(entry.value, playlists);
     }
     return summaries;
   }
 
-  Map<String, dynamic> _getSummary(List<Map<String, dynamic>> records) {
+  Map<String, dynamic> _getSummary(List<Map<String, dynamic>> records, List<Map<String, dynamic>> playlists) {
     if (records.isEmpty) return {'error': 'No data'};
 
     // ---- 1. Core numbers ----
@@ -810,6 +893,69 @@ class AnalysisService {
       };
     }
 
+    // ---- 9. Playlist play count statistics ----
+    // Build a lookup from track basename (lowercase) to play count in this period.
+    final trackBasePlayCounts = <String, int>{};
+    for (final entry in recordsByTitle.entries) {
+      for (final r in entry.value) {
+        final base = (r['track_base'] as String?)?.toLowerCase() ?? '';
+        if (base.isNotEmpty) {
+          trackBasePlayCounts[base] =
+              (trackBasePlayCounts[base] ?? 0) + 1;
+        }
+      }
+    }
+    // Also build a lookup from full normalized path to play count.
+    final trackPathPlayCounts = <String, int>{};
+    for (final r in records) {
+      final track = r['track']?.toString() ?? '';
+      if (track.isNotEmpty) {
+        final norm = _normalizeTrackPath(track);
+        trackPathPlayCounts[norm] = (trackPathPlayCounts[norm] ?? 0) + 1;
+      }
+    }
+
+    final playlistStats = <Map<String, dynamic>>[];
+    for (final pl in playlists) {
+      final name = pl['name']?.toString() ?? '';
+      if (name.isEmpty) continue;
+      final tracks = pl['tracks'];
+      if (tracks is! List) continue;
+
+      int totalPlays = 0;
+      final trackPlayCounts = <String, int>{};
+      for (final t in tracks) {
+        if (t is! Map) continue;
+        final trackPath = t['track']?.toString() ?? '';
+        if (trackPath.isEmpty) continue;
+        final base = p.basenameWithoutExtension(trackPath).toLowerCase();
+        final norm = _normalizeTrackPath(trackPath);
+        // Try full path match first, then basename match
+        final count = trackPathPlayCounts[norm] ?? trackBasePlayCounts[base] ?? 0;
+        final displayName = p.basenameWithoutExtension(trackPath);
+        trackPlayCounts[displayName] = (trackPlayCounts[displayName] ?? 0) + count;
+        totalPlays += count;
+      }
+
+      // Sort tracks by play count descending
+      final sortedTracks = Map.fromEntries(
+        trackPlayCounts.entries.toList()
+          ..sort((a, b) => b.value.compareTo(a.value)),
+      );
+
+      playlistStats.add({
+        'name': name,
+        'total_plays': totalPlays,
+        'track_count': tracks.length,
+        'track_play_counts': sortedTracks,
+        'creation_date': pl['creationDate'],
+        'modified_date': pl['modifiedDate'],
+      });
+    }
+    // Sort playlists by total plays descending
+    playlistStats.sort((a, b) =>
+        (b['total_plays'] as int).compareTo(a['total_plays'] as int));
+
     return {
       'total_plays': records.length,
       'total_days': totalDays,
@@ -834,6 +980,7 @@ class AnalysisService {
       'artist_details': artistDetails,
       'album_details': albumDetails,
       'all_track_compact': allTrackCompact,
+      'playlist_stats': playlistStats,
     };
   }
 

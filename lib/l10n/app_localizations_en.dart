@@ -382,4 +382,18 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get monthlyUniqueTracks => 'tracks';
+
+  @override
+  String get sectionPlaylists => 'Playlist Play Count Ranking';
+
+  @override
+  String get playlistRankingTitle => 'Playlist Ranking';
+
+  @override
+  String get playlistTrackRanking => 'Track Ranking in Playlist';
+
+  @override
+  String playlistTopCount(int count) {
+    return 'Top Playlists Top $count';
+  }
 }

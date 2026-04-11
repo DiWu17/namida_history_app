@@ -15,6 +15,8 @@ import '../widgets/highlight_card.dart';
 import '../widgets/time_charts.dart';
 import '../widgets/top_list_section.dart';
 import '../widgets/welcome_placeholder.dart';
+import 'playlist_ranking_screen.dart';
+import 'playlist_detail_screen.dart';
 import 'settings_screen.dart';
 
 class AnalyzerHome extends StatefulWidget {
@@ -346,6 +348,14 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
           ),
         ),
       ),
+      // ---- Playlist Play Count Ranking ----
+      if (summary['playlist_stats'] != null && (summary['playlist_stats'] as List).isNotEmpty)
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(24, 48, 24, 0),
+          sliver: SliverToBoxAdapter(
+            child: _buildPlaylistSection(summary['playlist_stats'] as List, l10n),
+          ),
+        ),
       SliverPadding(
         padding: const EdgeInsets.fromLTRB(24, 32, 24, 0),
         sliver: SliverToBoxAdapter(
@@ -430,6 +440,106 @@ class _AnalyzerHomeState extends State<AnalyzerHome> {
         ),
       ),
     ];
+  }
+
+  Widget _buildPlaylistSection(List<dynamic> playlistStats, AppLocalizations l10n) {
+    final maxPreview = 10;
+    final preview = playlistStats.take(maxPreview).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionTitle(l10n.sectionPlaylists),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(l10n.playlistTopCount(maxPreview), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+            TextButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (ctx) => PlaylistRankingScreen(playlistStats: playlistStats),
+                  ),
+                );
+              },
+              child: Text(l10n.viewFullList),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        ...preview.asMap().entries.map((mapEntry) {
+          final index = mapEntry.key;
+          final pl = mapEntry.value as Map<dynamic, dynamic>;
+          final name = pl['name']?.toString() ?? '';
+          final totalPlays = pl['total_plays'] as int? ?? 0;
+          final trackCount = pl['track_count'] as int? ?? 0;
+          final rank = index + 1;
+
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 2),
+            child: ListTile(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (ctx) => PlaylistDetailScreen(playlistData: pl),
+                  ),
+                );
+              },
+              contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+              leading: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 32,
+                    child: Center(
+                      child: Text(
+                        '#$rank',
+                        style: TextStyle(
+                          fontSize: rank <= 3 ? 18 : 14,
+                          fontWeight: rank <= 3 ? FontWeight.w900 : FontWeight.w600,
+                          color: rank == 1
+                              ? const Color(0xFFFFD700)
+                              : rank == 2
+                                  ? const Color(0xFFC0C0C0)
+                                  : rank == 3
+                                      ? const Color(0xFFCD7F32)
+                                      : Theme.of(context).colorScheme.onSurface.withAlpha(180),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primaryContainer.withAlpha(100),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(Icons.queue_music_rounded, color: Theme.of(context).colorScheme.primary, size: 20),
+                  ),
+                ],
+              ),
+              title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+              subtitle: Text('$trackCount ${l10n.tracksUnit}', style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurface.withAlpha(150))),
+              trailing: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primaryContainer.withAlpha(180),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '$totalPlays ${l10n.playsSuffix}',
+                  style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onPrimaryContainer, fontSize: 12),
+                ),
+              ),
+            ),
+          );
+        }),
+      ],
+    );
   }
 
   StatCard _buildStatCard(String key, Map<String, dynamic> summary, AppLocalizations l10n) {

@@ -793,6 +793,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'tracks'**
   String get monthlyUniqueTracks;
+
+  /// No description provided for @sectionPlaylists.
+  ///
+  /// In en, this message translates to:
+  /// **'Playlist Play Count Ranking'**
+  String get sectionPlaylists;
+
+  /// No description provided for @playlistRankingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Playlist Ranking'**
+  String get playlistRankingTitle;
+
+  /// No description provided for @playlistTrackRanking.
+  ///
+  /// In en, this message translates to:
+  /// **'Track Ranking in Playlist'**
+  String get playlistTrackRanking;
+
+  /// No description provided for @playlistTopCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Top Playlists Top {count}'**
+  String playlistTopCount(int count);
 }
 
 class _AppLocalizationsDelegate

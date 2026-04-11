@@ -129,4 +129,10 @@
   "@settingsFontSizeValue": {"placeholders": {"percent": {"type": "int"}}},
   "monthlyRanking": "榜单",
   "monthlyUniqueTracks": "首歌曲"
+  ,
+  "sectionPlaylists": "播放列表播放量排行",
+  "playlistRankingTitle": "播放列表排行",
+  "playlistTrackRanking": "列表内曲目排行",
+  "playlistTopCount": "播放列表 Top {count}",
+  "@playlistTopCount": {"placeholders": {"count": {"type": "int"}}}
 }

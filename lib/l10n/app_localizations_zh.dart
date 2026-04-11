@@ -375,4 +375,18 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get monthlyUniqueTracks => '首歌曲';
+
+  @override
+  String get sectionPlaylists => '播放列表播放量排行';
+
+  @override
+  String get playlistRankingTitle => '播放列表排行';
+
+  @override
+  String get playlistTrackRanking => '列表内曲目排行';
+
+  @override
+  String playlistTopCount(int count) {
+    return '播放列表 Top $count';
+  }
 }

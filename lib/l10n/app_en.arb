@@ -135,4 +135,10 @@
   "@settingsFontSizeValue": {"placeholders": {"percent": {"type": "int"}}},
   "monthlyRanking": "Ranking",
   "monthlyUniqueTracks": "tracks"
+  ,
+  "sectionPlaylists": "Playlist Play Count Ranking",
+  "playlistRankingTitle": "Playlist Ranking",
+  "playlistTrackRanking": "Track Ranking in Playlist",
+  "playlistTopCount": "Top Playlists Top {count}",
+  "@playlistTopCount": {"placeholders": {"count": {"type": "int"}}}
 }
