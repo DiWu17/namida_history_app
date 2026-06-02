@@ -92,9 +92,11 @@ class AnalysisService {
         (k, v) => MapEntry(k.toString(), Map<String, dynamic>.from(v as Map)),
       ),
     );
-    final playlists = (extractResult['playlists'] as List?)
-        ?.map((e) => Map<String, dynamic>.from(e as Map))
-        .toList() ?? <Map<String, dynamic>>[];
+    final playlists =
+        (extractResult['playlists'] as List?)
+            ?.map((e) => Map<String, dynamic>.from(e as Map))
+            .toList() ??
+        <Map<String, dynamic>>[];
 
     final coversDir = _coversDir;
     // Phase 2: Load, enrich, and analyze
@@ -110,7 +112,8 @@ class AnalysisService {
       );
       final records = worker._loadRecords(mergedDir);
       worker._enrichRecords(records);
-      final summaries = worker._getAllSummaries(records, playlists);
+      final mergedPlaylists = worker._overridePlaylistsWithM3u(playlists);
+      final summaries = worker._getAllSummaries(records, mergedPlaylists);
       return {'success': true, 'summaries': summaries};
     });
 
@@ -125,15 +128,20 @@ class AnalysisService {
 
   /// Runs in background isolate: extract ZIPs and merge JSON files.
   static Map<String, dynamic> _extractAndMerge(
-      List<String> zipPaths, String tempDir, String mergedDir) {
+    List<String> zipPaths,
+    String tempDir,
+    String mergedDir,
+  ) {
     int successCount = 0;
     final backupTrackMetaByPath = <String, Map<String, dynamic>>{};
     final backupTrackStatsByPath = <String, Map<String, dynamic>>{};
     final playlistsByName = <String, Map<String, dynamic>>{};
     for (int i = 0; i < zipPaths.length; i++) {
       final extractToPath = p.join(tempDir, 'zip_$i');
-      final extracted =
-          _extractHistoryFolderSync(zipPaths[i], p.join(tempDir, 'zip_$i'));
+      final extracted = _extractHistoryFolderSync(
+        zipPaths[i],
+        p.join(tempDir, 'zip_$i'),
+      );
       final historyDir = extracted?['historyDir'];
       final localFilesDir = extracted?['localFilesDir'];
       final playlistsDir = extracted?['playlistsDir'];
@@ -147,8 +155,12 @@ class AnalysisService {
         dbSearchDirs.add(historyDir);
 
         final dbData = _readBackupDatabases(dbSearchDirs);
-        backupTrackMetaByPath.addAll(dbData['trackMetaByPath'] as Map<String, Map<String, dynamic>>);
-        backupTrackStatsByPath.addAll(dbData['trackStatsByPath'] as Map<String, Map<String, dynamic>>);
+        backupTrackMetaByPath.addAll(
+          dbData['trackMetaByPath'] as Map<String, Map<String, dynamic>>,
+        );
+        backupTrackStatsByPath.addAll(
+          dbData['trackStatsByPath'] as Map<String, Map<String, dynamic>>,
+        );
         _mergeJsonFiles(historyDir, mergedDir);
 
         // Parse playlists and merge by name
@@ -218,7 +230,84 @@ class AnalysisService {
     return result;
   }
 
-  static Map<String, Map<String, dynamic>> _readBackupDatabases(List<String> searchDirs) {
+  /// Prefer playlists stored as M3U files in the configured music directory.
+  /// The filename without extension is used as the playlist name.
+  List<Map<String, dynamic>> _overridePlaylistsWithM3u(
+    List<Map<String, dynamic>> backupPlaylists,
+  ) {
+    final playlistsByName = <String, Map<String, dynamic>>{
+      for (final playlist in backupPlaylists)
+        if ((playlist['name']?.toString() ?? '').isNotEmpty)
+          playlist['name'].toString(): playlist,
+    };
+    final musicDirectory = _musicDirectory;
+    if (musicDirectory == null || musicDirectory.isEmpty) {
+      return playlistsByName.values.toList();
+    }
+
+    final musicDir = Directory(musicDirectory);
+    if (!musicDir.existsSync()) return playlistsByName.values.toList();
+
+    for (final entity in musicDir.listSync(recursive: true)) {
+      if (entity is! File || p.extension(entity.path).toLowerCase() != '.m3u') {
+        continue;
+      }
+      final playlist = _readM3uPlaylist(entity);
+      if (playlist != null) {
+        final playlistName = playlist['name'].toString();
+        String? existingName;
+        for (final name in playlistsByName.keys) {
+          if (name.toLowerCase() == playlistName.toLowerCase()) {
+            existingName = name;
+            break;
+          }
+        }
+        if (existingName != null) playlistsByName.remove(existingName);
+        playlistsByName[playlistName] = playlist;
+      }
+    }
+    return playlistsByName.values.toList();
+  }
+
+  static Map<String, dynamic>? _readM3uPlaylist(File file) {
+    try {
+      var content = file.readAsStringSync();
+      if (content.startsWith('\uFEFF')) content = content.substring(1);
+
+      final tracks = <Map<String, dynamic>>[];
+      for (final rawLine in const LineSplitter().convert(content)) {
+        final line = rawLine.trim();
+        if (line.isEmpty || line.startsWith('#')) continue;
+
+        tracks.add({'track': _resolveM3uTrackPath(line, p.dirname(file.path))});
+      }
+
+      final stat = file.statSync();
+      return {
+        'name': p.basenameWithoutExtension(file.path),
+        'tracks': tracks,
+        'creationDate': stat.changed.millisecondsSinceEpoch,
+        'modifiedDate': stat.modified.millisecondsSinceEpoch,
+      };
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static String _resolveM3uTrackPath(String trackPath, String playlistDir) {
+    final uri = Uri.tryParse(trackPath);
+    if (uri != null && uri.scheme.toLowerCase() == 'file') {
+      try {
+        return uri.toFilePath();
+      } catch (_) {}
+    }
+    if (p.isAbsolute(trackPath)) return p.normalize(trackPath);
+    return p.normalize(p.join(playlistDir, trackPath));
+  }
+
+  static Map<String, Map<String, dynamic>> _readBackupDatabases(
+    List<String> searchDirs,
+  ) {
     final trackMetaByPath = <String, Map<String, dynamic>>{};
     final trackStatsByPath = <String, Map<String, dynamic>>{};
 
@@ -280,8 +369,12 @@ class AnalysisService {
             .toList();
         if (colNames.length < 2) continue;
 
-        final keyCol = _pickLikelyColumn(colNames, const ['key', 'path']) ?? colNames.first;
-        final valCol = _pickLikelyColumn(colNames, const ['value', 'json', 'data']) ?? colNames[1];
+        final keyCol =
+            _pickLikelyColumn(colNames, const ['key', 'path']) ??
+            colNames.first;
+        final valCol =
+            _pickLikelyColumn(colNames, const ['value', 'json', 'data']) ??
+            colNames[1];
 
         final escapedKeyCol = _escapeSqlIdentifier(keyCol);
         final escapedValCol = _escapeSqlIdentifier(valCol);
@@ -337,7 +430,8 @@ class AnalysisService {
     return null;
   }
 
-  static String _escapeSqlIdentifier(String ident) => ident.replaceAll('"', '""');
+  static String _escapeSqlIdentifier(String ident) =>
+      ident.replaceAll('"', '""');
 
   static String _normalizeTrackPath(String path) =>
       path.replaceAll('\\', '/').trim().toLowerCase();
@@ -347,7 +441,9 @@ class AnalysisService {
   // ---------------------------------------------------------------------------
 
   static Map<String, String>? _extractHistoryFolderSync(
-      String backupZipPath, String extractToPath) {
+    String backupZipPath,
+    String extractToPath,
+  ) {
     final zipFile = File(backupZipPath);
     if (!zipFile.existsSync()) return null;
 
@@ -377,8 +473,9 @@ class AnalysisService {
       if (historyZipEntry == null) return null;
 
       // Decode the inner ZIP
-      final historyArchive =
-          ZipDecoder().decodeBytes(historyZipEntry.content as List<int>);
+      final historyArchive = ZipDecoder().decodeBytes(
+        historyZipEntry.content as List<int>,
+      );
       final historyDir = p.join(extractToPath, 'TEMPDIR_History');
       Directory(historyDir).createSync(recursive: true);
 
@@ -392,8 +489,9 @@ class AnalysisService {
 
       String? localFilesDir;
       if (localFilesZipEntry != null) {
-        final localArchive =
-            ZipDecoder().decodeBytes(localFilesZipEntry.content as List<int>);
+        final localArchive = ZipDecoder().decodeBytes(
+          localFilesZipEntry.content as List<int>,
+        );
         localFilesDir = p.join(extractToPath, 'LOCAL_FILES');
         Directory(localFilesDir).createSync(recursive: true);
 
@@ -409,8 +507,9 @@ class AnalysisService {
       // Extract playlists ZIP
       String? playlistsDir;
       if (playlistsZipEntry != null) {
-        final playlistsArchive =
-            ZipDecoder().decodeBytes(playlistsZipEntry.content as List<int>);
+        final playlistsArchive = ZipDecoder().decodeBytes(
+          playlistsZipEntry.content as List<int>,
+        );
         playlistsDir = p.join(extractToPath, 'TEMPDIR_Playlists');
         Directory(playlistsDir).createSync(recursive: true);
 
@@ -458,7 +557,8 @@ class AnalysisService {
   }
 
   void _saveCover(List<int> imageData, String baseName, String? album) {
-    final ext = (imageData.length >= 8 &&
+    final ext =
+        (imageData.length >= 8 &&
             imageData[0] == 0x89 &&
             imageData[1] == 0x50 &&
             imageData[2] == 0x4E &&
@@ -531,8 +631,9 @@ class AnalysisService {
     if (records.isEmpty) return;
 
     // Determine timestamp unit (ms vs s)
-    final sampleVal =
-        records.where((r) => r['dateAdded'] != null).firstOrNull?['dateAdded'];
+    final sampleVal = records
+        .where((r) => r['dateAdded'] != null)
+        .firstOrNull?['dateAdded'];
     final bool isMs = sampleVal is num && sampleVal > 1e11;
 
     for (final r in records) {
@@ -543,31 +644,29 @@ class AnalysisService {
       r['track_name'] = trackName;
       r['track_base'] = trackBase;
 
-        // Prefer metadata from backup DB and only do lightweight path remapping
-        // during analysis. Actual file lookup stays on-demand in UI flows.
-      final backupMeta = _backupTrackMetadataByPath[trackPathNorm] ??
+      // Prefer metadata from backup DB and only do lightweight path remapping
+      // during analysis. Actual file lookup stays on-demand in UI flows.
+      final backupMeta =
+          _backupTrackMetadataByPath[trackPathNorm] ??
           _backupTrackMetadataByBase[trackBase];
-        final sourcePath = _firstNonEmpty([
-          backupMeta?['path'],
-          track,
-          ]) ??
-          track;
-        final meta = _buildMergedTrackMeta(sourcePath, backupMeta);
+      final sourcePath = _firstNonEmpty([backupMeta?['path'], track]) ?? track;
+      final meta = _buildMergedTrackMeta(sourcePath, backupMeta);
 
       r['artist'] = _metaStr(meta, 'artist', 'Unknown Artist');
       r['album'] = _metaStr(meta, 'album', 'Unknown Album');
-      r['title'] = _metaStr(meta, 'title', '') .isEmpty
+      r['title'] = _metaStr(meta, 'title', '').isEmpty
           ? trackName
           : _metaStr(meta, 'title', trackName);
       r['duration'] = (meta['duration'] is num)
           ? (meta['duration'] as num).toDouble()
           : 0.0;
       r['genre'] = _metaStr(meta, 'genre', 'Unknown Genre');
-        r['sourcePath'] = sourcePath;
-        r['localPath'] = meta['localPath']?.toString() ?? '';
+      r['sourcePath'] = sourcePath;
+      r['localPath'] = meta['localPath']?.toString() ?? '';
 
       // Attach track stats (rating/moods/tags) from backup DB if available.
-      final stats = _backupTrackStatsByPath[trackPathNorm] ??
+      final stats =
+          _backupTrackStatsByPath[trackPathNorm] ??
           _backupTrackStatsByBase[trackBase];
       r['rating'] = _asInt(stats?['rating']) ?? 0;
       r['tags'] = _asStringList(stats?['tags']);
@@ -577,11 +676,12 @@ class AnalysisService {
       final dateAdded = r['dateAdded'];
       if (dateAdded is num) {
         final ms = isMs ? dateAdded.toInt() : (dateAdded * 1000).toInt();
-        final dt = DateTime.fromMillisecondsSinceEpoch(ms, isUtc: true)
-            .add(const Duration(hours: 8));
+        final dt = DateTime.fromMillisecondsSinceEpoch(
+          ms,
+          isUtc: true,
+        ).add(const Duration(hours: 8));
         r['datetime'] = dt;
-        r['date_only'] =
-            '${dt.year}-${_pad2(dt.month)}-${_pad2(dt.day)}';
+        r['date_only'] = '${dt.year}-${_pad2(dt.month)}-${_pad2(dt.day)}';
       }
     }
   }
@@ -590,7 +690,10 @@ class AnalysisService {
   // Summary generation (replaces parser.py get_summary / get_all_summaries)
   // ---------------------------------------------------------------------------
 
-  Map<String, dynamic> _getAllSummaries(List<Map<String, dynamic>> records, List<Map<String, dynamic>> playlists) {
+  Map<String, dynamic> _getAllSummaries(
+    List<Map<String, dynamic>> records,
+    List<Map<String, dynamic>> playlists,
+  ) {
     final summaries = <String, dynamic>{};
     summaries['所有时间'] = _getSummary(records, playlists);
 
@@ -609,7 +712,10 @@ class AnalysisService {
     return summaries;
   }
 
-  Map<String, dynamic> _getSummary(List<Map<String, dynamic>> records, List<Map<String, dynamic>> playlists) {
+  Map<String, dynamic> _getSummary(
+    List<Map<String, dynamic>> records,
+    List<Map<String, dynamic>> playlists,
+  ) {
     if (records.isEmpty) return {'error': 'No data'};
 
     // ---- 1. Core numbers ----
@@ -623,35 +729,35 @@ class AnalysisService {
     }
     final totalHours = totalSeconds / 3600.0;
 
-    final uniqueTracks =
-        records.map((r) => r['track_base']).toSet().length;
-    final uniqueArtists =
-        records.map((r) => r['artist']).toSet().length;
-    final uniqueAlbums =
-        records.map((r) => r['album']).toSet().length;
+    final uniqueTracks = records.map((r) => r['track_base']).toSet().length;
+    final uniqueArtists = records.map((r) => r['artist']).toSet().length;
+    final uniqueAlbums = records.map((r) => r['album']).toSet().length;
 
     final genreCounts = _countValues(
-        records.where((r) => r['genre'] != 'Unknown Genre').toList(),
-        'genre');
+      records.where((r) => r['genre'] != 'Unknown Genre').toList(),
+      'genre',
+    );
     final favoriteGenre = genreCounts.isNotEmpty
-        ? genreCounts.entries
-            .reduce((a, b) => a.value > b.value ? a : b)
-            .key
+        ? genreCounts.entries.reduce((a, b) => a.value > b.value ? a : b).key
         : 'Unknown Genre';
 
     // ---- 2. Top rankings ----
     final artistCounts = _countValues(
-        records.where((r) => r['artist'] != 'Unknown Artist').toList(),
-        'artist');
+      records.where((r) => r['artist'] != 'Unknown Artist').toList(),
+      'artist',
+    );
     final topArtists = _topN(artistCounts, 200);
 
     final albumCounts = _countValues(
-        records
-            .where((r) =>
+      records
+          .where(
+            (r) =>
                 r['album'] != 'Unknown Album' &&
-                (r['album']?.toString() ?? '').isNotEmpty)
-            .toList(),
-        'album');
+                (r['album']?.toString() ?? '').isNotEmpty,
+          )
+          .toList(),
+      'album',
+    );
     final topAlbums = _topN(albumCounts, 200);
 
     // Monthly top song
@@ -668,8 +774,9 @@ class AnalysisService {
     for (final e in monthlyGroups.entries) {
       final c = _countValues(e.value, 'title');
       if (c.isNotEmpty) {
-        monthlyTopSong[e.key] =
-            c.entries.reduce((a, b) => a.value > b.value ? a : b).key;
+        monthlyTopSong[e.key] = c.entries
+            .reduce((a, b) => a.value > b.value ? a : b)
+            .key;
         monthlyRankings[e.key] = _topN(c, 100);
       }
     }
@@ -677,11 +784,16 @@ class AnalysisService {
     // ---- 3. Time dimension ----
     final playHistoryByDate = <String, int>{};
     final listeningPeriods = <String, int>{
-      for (int h = 0; h < 24; h++) '${_pad2(h)}:00': 0
+      for (int h = 0; h < 24; h++) '${_pad2(h)}:00': 0,
     };
     final weeklyPattern = <String, int>{
-      'Mon': 0, 'Tue': 0, 'Wed': 0, 'Thu': 0,
-      'Fri': 0, 'Sat': 0, 'Sun': 0,
+      'Mon': 0,
+      'Tue': 0,
+      'Wed': 0,
+      'Thu': 0,
+      'Fri': 0,
+      'Sat': 0,
+      'Sun': 0,
     };
     const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -689,24 +801,25 @@ class AnalysisService {
       final dt = r['datetime'];
       if (dt is DateTime) {
         final dateStr = r['date_only'] as String;
-        playHistoryByDate[dateStr] =
-            (playHistoryByDate[dateStr] ?? 0) + 1;
+        playHistoryByDate[dateStr] = (playHistoryByDate[dateStr] ?? 0) + 1;
         final hourKey = '${_pad2(dt.hour)}:00';
-        listeningPeriods[hourKey] =
-            (listeningPeriods[hourKey] ?? 0) + 1;
+        listeningPeriods[hourKey] = (listeningPeriods[hourKey] ?? 0) + 1;
         final dayKey = dayNames[dt.weekday - 1];
         weeklyPattern[dayKey] = (weeklyPattern[dayKey] ?? 0) + 1;
       }
     }
 
     final sortedPlayHistory = Map.fromEntries(
-        playHistoryByDate.entries.toList()
-          ..sort((a, b) => a.key.compareTo(b.key)));
+      playHistoryByDate.entries.toList()
+        ..sort((a, b) => a.key.compareTo(b.key)),
+    );
 
     // ---- 4. Special highlights ----
     // Single-day repeat max
     var singleDayRepeatMax = <String, dynamic>{
-      'date': '', 'track': '', 'count': 0
+      'date': '',
+      'track': '',
+      'count': 0,
     };
     {
       final dailyCounts = <String, Map<String, int>>{};
@@ -757,12 +870,14 @@ class AnalysisService {
     var mostImmersiveDay = <String, dynamic>{'date': '', 'count': 0};
     final totalDays = playHistoryByDate.length;
     if (playHistoryByDate.isNotEmpty) {
-      final maxEntry = playHistoryByDate.entries
-          .reduce((a, b) => a.value > b.value ? a : b);
+      final maxEntry = playHistoryByDate.entries.reduce(
+        (a, b) => a.value > b.value ? a : b,
+      );
       mostImmersiveDay = {'date': maxEntry.key, 'count': maxEntry.value};
     }
-    final avgDailyMinutes =
-        totalDays > 0 ? (totalHours * 60 / totalDays).round() : 0;
+    final avgDailyMinutes = totalDays > 0
+        ? (totalHours * 60 / totalDays).round()
+        : 0;
 
     // ---- 5. Track details (top 300) ----
     final trackDetails = <String, dynamic>{};
@@ -795,8 +910,7 @@ class AnalysisService {
     // ---- 6. Artist details (top 200) ----
     final artistDetails = <String, dynamic>{};
     for (final aName in topArtists.keys.take(200)) {
-      final aRecords =
-          records.where((r) => r['artist'] == aName).toList();
+      final aRecords = records.where((r) => r['artist'] == aName).toList();
       if (aRecords.isEmpty) continue;
       final representative = _pickRepresentativeRecord(aRecords);
       final dates = aRecords
@@ -827,8 +941,7 @@ class AnalysisService {
     // ---- 7. Album details (top 200) ----
     final albumDetails = <String, dynamic>{};
     for (final alName in topAlbums.keys.take(200)) {
-      final alRecords =
-          records.where((r) => r['album'] == alName).toList();
+      final alRecords = records.where((r) => r['album'] == alName).toList();
       if (alRecords.isEmpty) continue;
       final representative = _pickRepresentativeRecord(alRecords);
       final dates = alRecords
@@ -900,8 +1013,7 @@ class AnalysisService {
       for (final r in entry.value) {
         final base = (r['track_base'] as String?)?.toLowerCase() ?? '';
         if (base.isNotEmpty) {
-          trackBasePlayCounts[base] =
-              (trackBasePlayCounts[base] ?? 0) + 1;
+          trackBasePlayCounts[base] = (trackBasePlayCounts[base] ?? 0) + 1;
         }
       }
     }
@@ -931,9 +1043,11 @@ class AnalysisService {
         final base = p.basenameWithoutExtension(trackPath).toLowerCase();
         final norm = _normalizeTrackPath(trackPath);
         // Try full path match first, then basename match
-        final count = trackPathPlayCounts[norm] ?? trackBasePlayCounts[base] ?? 0;
+        final count =
+            trackPathPlayCounts[norm] ?? trackBasePlayCounts[base] ?? 0;
         final displayName = p.basenameWithoutExtension(trackPath);
-        trackPlayCounts[displayName] = (trackPlayCounts[displayName] ?? 0) + count;
+        trackPlayCounts[displayName] =
+            (trackPlayCounts[displayName] ?? 0) + count;
         totalPlays += count;
       }
 
@@ -953,8 +1067,9 @@ class AnalysisService {
       });
     }
     // Sort playlists by total plays descending
-    playlistStats.sort((a, b) =>
-        (b['total_plays'] as int).compareTo(a['total_plays'] as int));
+    playlistStats.sort(
+      (a, b) => (b['total_plays'] as int).compareTo(a['total_plays'] as int),
+    );
 
     return {
       'total_plays': records.length,
@@ -1014,18 +1129,13 @@ class AnalysisService {
         backupMeta?['originalAlbum'],
         backupMeta?['album'],
       ]),
-      'title': _firstNonEmpty([
-        backupMeta?['title'],
-      ]),
+      'title': _firstNonEmpty([backupMeta?['title']]),
       'genre': _firstNonEmpty([
         backupMeta?['originalGenre'],
         backupMeta?['genre'],
       ]),
       'duration': resolvedDuration,
-      'localPath': _remapTrackPathSync(
-        sourcePath,
-        musicDir: _musicDirectory,
-      ),
+      'localPath': _remapTrackPathSync(sourcePath, musicDir: _musicDirectory),
     };
   }
 
@@ -1248,16 +1358,25 @@ class AnalysisService {
 
   List<String> _asStringList(dynamic v) {
     if (v is List) {
-      return v.map((e) => e.toString().trim()).where((e) => e.isNotEmpty).toList();
+      return v
+          .map((e) => e.toString().trim())
+          .where((e) => e.isNotEmpty)
+          .toList();
     }
     if (v is String && v.trim().isNotEmpty) {
-      return v.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+      return v
+          .split(',')
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
+          .toList();
     }
     return const [];
   }
 
   Map<String, int> _countValues(
-      List<Map<String, dynamic>> records, String key) {
+    List<Map<String, dynamic>> records,
+    String key,
+  ) {
     final counts = <String, int>{};
     for (final r in records) {
       final val = r[key]?.toString() ?? '';
@@ -1279,11 +1398,11 @@ class AnalysisService {
       if (d != null) hist[d] = (hist[d] ?? 0) + 1;
     }
     return Map.fromEntries(
-        hist.entries.toList()..sort((a, b) => a.key.compareTo(b.key)));
+      hist.entries.toList()..sort((a, b) => a.key.compareTo(b.key)),
+    );
   }
 
-  String _getTrackCover(
-      String trackTitle, List<Map<String, dynamic>> records) {
+  String _getTrackCover(String trackTitle, List<Map<String, dynamic>> records) {
     final match = records.where((r) => r['title'] == trackTitle).firstOrNull;
     if (match != null) {
       final base = match['track_base'] as String?;
@@ -1299,14 +1418,18 @@ class AnalysisService {
   }
 
   String _getArtistCover(
-      String artistName, List<Map<String, dynamic>> records) {
-    final artistRecords =
-        records.where((r) => r['artist'] == artistName).toList();
+    String artistName,
+    List<Map<String, dynamic>> records,
+  ) {
+    final artistRecords = records
+        .where((r) => r['artist'] == artistName)
+        .toList();
     if (artistRecords.isEmpty) return '';
     final counts = _countValues(artistRecords, 'title');
     if (counts.isEmpty) return '';
-    final topTrack =
-        counts.entries.reduce((a, b) => a.value > b.value ? a : b).key;
+    final topTrack = counts.entries
+        .reduce((a, b) => a.value > b.value ? a : b)
+        .key;
     return _getTrackCover(topTrack, artistRecords);
   }
 
@@ -1364,21 +1487,18 @@ class AnalysisService {
     final outPath = p.join(_coversDir, 'ffmpeg_$tempBase.jpg');
 
     try {
-      final result = await Process.run(
-        'ffmpeg',
-        [
-          '-y',
-          '-loglevel',
-          'error',
-          '-i',
-          filePath,
-          '-map',
-          '0:v:0',
-          '-frames:v',
-          '1',
-          outPath,
-        ],
-      );
+      final result = await Process.run('ffmpeg', [
+        '-y',
+        '-loglevel',
+        'error',
+        '-i',
+        filePath,
+        '-map',
+        '0:v:0',
+        '-frames:v',
+        '1',
+        outPath,
+      ]);
       if (result.exitCode != 0) {
         return '';
       }
@@ -1433,7 +1553,10 @@ class AnalysisService {
     return s;
   }
 
-  static Future<void> _cacheResolvedTrackPathAsync(String cacheKey, String resolvedPath) async {
+  static Future<void> _cacheResolvedTrackPathAsync(
+    String cacheKey,
+    String resolvedPath,
+  ) async {
     _missingTrackPathCache.remove(cacheKey);
     _resolvedTrackPathCache[cacheKey] = resolvedPath;
     await _savePathCacheAsync();
@@ -1491,7 +1614,10 @@ class AnalysisService {
   static Future<void> _savePathCacheAsync() async {
     try {
       final file = _pathCacheFile ??= File(
-        p.join((await getApplicationSupportDirectory()).path, 'track_path_cache.json'),
+        p.join(
+          (await getApplicationSupportDirectory()).path,
+          'track_path_cache.json',
+        ),
       );
       final payload = {
         'version': 1,
@@ -1540,7 +1666,10 @@ class AnalysisService {
     return '';
   }
 
-  static List<String> _buildRemapCandidates(String sourcePath, String musicDir) {
+  static List<String> _buildRemapCandidates(
+    String sourcePath,
+    String musicDir,
+  ) {
     final sourceSegments = _pathSegments(sourcePath);
     final candidates = <String>{};
     for (int start = 0; start < sourceSegments.length; start++) {
@@ -1558,7 +1687,10 @@ class AnalysisService {
     return candidates.toList(growable: false);
   }
 
-  Future<String> _searchTrackPathAsync(String sourcePath, String? musicDir) async {
+  Future<String> _searchTrackPathAsync(
+    String sourcePath,
+    String? musicDir,
+  ) async {
     final baseDir = musicDir?.trim() ?? '';
     if (baseDir.isEmpty) {
       return '';
@@ -1588,7 +1720,9 @@ class AnalysisService {
       }
 
       final candidateName = p.basename(entity.path).toLowerCase();
-      final candidateBase = p.basenameWithoutExtension(entity.path).toLowerCase();
+      final candidateBase = p
+          .basenameWithoutExtension(entity.path)
+          .toLowerCase();
       if (candidateName != targetName && candidateBase != targetBase) {
         continue;
       }
@@ -1603,7 +1737,10 @@ class AnalysisService {
     return bestPath;
   }
 
-  static int _scorePathMatch(List<String> sourceSegments, String candidatePath) {
+  static int _scorePathMatch(
+    List<String> sourceSegments,
+    String candidatePath,
+  ) {
     final candidateSegments = _pathSegments(candidatePath);
     var score = 0;
     var sourceIndex = sourceSegments.length - 1;
@@ -1613,7 +1750,9 @@ class AnalysisService {
     while (sourceIndex >= 0 && candidateIndex >= 0) {
       if (sourceSegments[sourceIndex] == candidateSegments[candidateIndex]) {
         consecutiveMatches++;
-        score += candidateIndex == candidateSegments.length - 1 ? 20 : 5 * consecutiveMatches;
+        score += candidateIndex == candidateSegments.length - 1
+            ? 20
+            : 5 * consecutiveMatches;
         sourceIndex--;
         candidateIndex--;
         continue;
