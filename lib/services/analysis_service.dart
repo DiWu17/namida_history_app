@@ -172,19 +172,21 @@ class AnalysisService {
             if (existing == null) {
               playlistsByName[name] = pl;
             } else {
-              // Merge tracks: collect existing track paths to avoid duplicates
+              // Device backups store different absolute paths for the same
+              // track. Merge by filename so mobile and desktop playlists join.
               final existingTracks = existing['tracks'] as List? ?? [];
-              final existingPaths = <String>{
+              final existingTrackNames = <String>{
                 for (final t in existingTracks)
-                  if (t is Map) (t['track']?.toString() ?? '').toLowerCase(),
+                  if (t is Map) _playlistTrackMergeKey(t['track']),
               };
               final newTracks = pl['tracks'] as List? ?? [];
               for (final t in newTracks) {
                 if (t is! Map) continue;
-                final tp = (t['track']?.toString() ?? '').toLowerCase();
-                if (tp.isNotEmpty && !existingPaths.contains(tp)) {
+                final trackName = _playlistTrackMergeKey(t['track']);
+                if (trackName.isNotEmpty &&
+                    !existingTrackNames.contains(trackName)) {
                   existingTracks.add(t);
-                  existingPaths.add(tp);
+                  existingTrackNames.add(trackName);
                 }
               }
               // Keep the latest modification date
@@ -435,6 +437,11 @@ class AnalysisService {
 
   static String _normalizeTrackPath(String path) =>
       path.replaceAll('\\', '/').trim().toLowerCase();
+
+  static String _playlistTrackMergeKey(dynamic trackPath) {
+    final normalized = _normalizeTrackPath(trackPath?.toString() ?? '');
+    return normalized.split('/').last;
+  }
 
   // ---------------------------------------------------------------------------
   // ZIP extraction (replaces extractor.py)
@@ -1042,9 +1049,11 @@ class AnalysisService {
         if (trackPath.isEmpty) continue;
         final base = p.basenameWithoutExtension(trackPath).toLowerCase();
         final norm = _normalizeTrackPath(trackPath);
-        // Try full path match first, then basename match
+        // Playlist tracks can come from one device while listening history was
+        // merged from several devices. Prefer the basename total so plays from
+        // different absolute paths are counted together.
         final count =
-            trackPathPlayCounts[norm] ?? trackBasePlayCounts[base] ?? 0;
+            trackBasePlayCounts[base] ?? trackPathPlayCounts[norm] ?? 0;
         final displayName = p.basenameWithoutExtension(trackPath);
         trackPlayCounts[displayName] =
             (trackPlayCounts[displayName] ?? 0) + count;

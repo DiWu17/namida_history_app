@@ -109,3 +109,5 @@ venv.bak/
 # Secrets
 credentials.json
 client_secret.json
+
+CHANGELOG.md
