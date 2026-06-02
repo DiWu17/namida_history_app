@@ -485,6 +485,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: child,
             );
           },
+          // Keep compatibility with Flutter versions before onReorderItem.
+          // ignore: deprecated_member_use
           onReorder: (oldIndex, newIndex) {
             setState(() {
               final oldVisibleCount = _coreItems.where((e) => e.value).length;
